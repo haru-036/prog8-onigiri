@@ -87,7 +87,9 @@ export default function Group() {
                   <CircleSmall className="size-4 fill-blue-600 stroke-0" />
                   進行中
                 </div>
-                <div className="text-muted-foreground">12</div>
+                <div className="text-muted-foreground">
+                  {tasks.filter((t) => t.status === "in-progress").length}
+                </div>
               </div>
               <div className="py-3 grid grid-cols-1 gap-3">
                 {tasks
@@ -103,7 +105,9 @@ export default function Group() {
                   <CircleSmall className="size-4 fill-green-600 stroke-0" />
                   完了
                 </div>
-                <div className="text-muted-foreground">12</div>
+                <div className="text-muted-foreground">
+                  {tasks.filter((t) => t.status === "done").length}
+                </div>
               </div>
               <div className="py-3 grid grid-cols-1 gap-3 opacity-50">
                 {tasks
