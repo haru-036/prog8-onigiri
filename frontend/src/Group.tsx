@@ -1,7 +1,7 @@
 import {
   ArrowDownUp,
+  Calendar,
   CircleSmall,
-  Clock,
   Filter,
   Flag,
   Search,
@@ -133,8 +133,9 @@ const TaskCard = ({ task }: { task: Task }) => {
         <CardHeader className="grid-flow-col justify-between items-center">
           <PriorityBadge priority={task.priority} />
           <div className="flex items-center gap-0.5 text-sm">
-            <Clock size={12} />
+            <Calendar size={12} />
             <span>
+              {/* TODO: 締め切りの表示 */}
               {new Date(task.deadline).toLocaleDateString("ja-JP", {
                 year: "numeric",
                 month: "2-digit",
@@ -171,15 +172,24 @@ const PriorityBadge = ({
 }) => {
   const colors = {
     high: "text-red-700",
-    middle: "text-amber-700",
-    low: "text-neutral-700",
+    middle: "text-amber-600",
+    low: "text-neutral-600",
   };
 
   return (
     <div
       className={`flex items-center gap-1 text-sm font-semibold ${colors[priority]}`}
     >
-      <Flag size={16} />
+      <Flag
+        size={16}
+        className={
+          priority === "high"
+            ? "fill-red-700"
+            : priority === "middle"
+            ? "fill-amber-600"
+            : ""
+        }
+      />
       {priority === "high" ? "高" : priority === "middle" ? "中" : "低"}
     </div>
   );
@@ -199,15 +209,24 @@ const TaskFilter = () => {
           <ul className="flex flex-col gap-2 pt-2">
             <li className="flex items-center gap-2">
               <Checkbox id="high" />
-              <Label htmlFor="high">高 (12)</Label>
+              <Label htmlFor="high" className="gap-0.5">
+                <Flag className="size-3.5 text-red-700 fill-red-700" />高 (
+                {tasks.filter((task) => task.priority === "high").length})
+              </Label>
             </li>
             <li className="flex items-center gap-2">
               <Checkbox id="middle" />
-              <Label htmlFor="middle">中 (4)</Label>
+              <Label htmlFor="middle" className="gap-0.5">
+                <Flag className="size-3.5 text-amber-600 fill-amber-600" />中 (
+                {tasks.filter((task) => task.priority === "middle").length})
+              </Label>
             </li>
             <li className="flex items-center gap-2">
               <Checkbox id="low" />
-              <Label htmlFor="low">低 (8)</Label>
+              <Label htmlFor="low" className="gap-0.5">
+                <Flag className="size-3.5 text-neutral-600" />低 (
+                {tasks.filter((task) => task.priority === "low").length})
+              </Label>
             </li>
           </ul>
         </div>
