@@ -69,7 +69,9 @@ export default function Group() {
                   <CircleSmall className="size-4 fill-muted-foreground stroke-0" />
                   未着手
                 </div>
-                <div className="text-muted-foreground">12</div>
+                <div className="text-muted-foreground">
+                  {tasks.filter((t) => t.status === "not-stated-yet").length}
+                </div>
               </div>
               <div className="py-3 grid grid-cols-1 gap-3">
                 {tasks
