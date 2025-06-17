@@ -25,6 +25,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
 import { tasks } from "./mock/data";
 import type { Task } from "./type";
+import { Link } from "react-router";
 
 export default function Group() {
   return (
@@ -38,52 +39,10 @@ export default function Group() {
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           </div>
-          <div className="bg-white rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <Filter className="size-4 text-primary" />
-              <h3 className="font-semibold">絞り込み</h3>
-            </div>
-
-            <div>
-              <div className="py-3">
-                <h4 className="text-muted-foreground text-sm">優先度</h4>
-                <ul className="flex flex-col gap-2 pt-2">
-                  <li className="flex items-center gap-2">
-                    <Checkbox id="high" />
-                    <Label htmlFor="high">高 (12)</Label>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Checkbox id="middle" />
-                    <Label htmlFor="middle">中 (4)</Label>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Checkbox id="low" />
-                    <Label htmlFor="low">低 (8)</Label>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="py-2">
-                <h4 className="text-muted-foreground text-sm">担当者</h4>
-                <ul className="flex flex-col gap-2 pt-2">
-                  <li className="flex items-center gap-2">
-                    <Checkbox id="user1" />
-                    <Label htmlFor="user1">佐藤 (12)</Label>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Checkbox id="user2" />
-                    <Label htmlFor="user2">田中 (4)</Label>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Checkbox id="user3" />
-                    <Label htmlFor="user3">鈴木 (8)</Label>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
+          <TaskFilter />
         </div>
 
+        {/* 並び替え */}
         <div className="w-full">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-xl">チームタスク</h2>
@@ -96,8 +55,8 @@ export default function Group() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="priority-deadline">優先度×期限順</SelectItem>
-                <SelectItem value="priority">優先度</SelectItem>
-                <SelectItem value="deadline">期限</SelectItem>
+                <SelectItem value="priority">優先度順</SelectItem>
+                <SelectItem value="deadline">期限順</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -161,37 +120,41 @@ export default function Group() {
 
 const TaskCard = ({ task }: { task: Task }) => {
   return (
-    <Card
-      className={`border-neutral-200 shadow-none gap-3 hover:shadow-md transition-shadow`}
-    >
-      <CardHeader className="grid-flow-col justify-between items-center">
-        <PriorityBadge priority={task.priority} />
-        <div className="flex items-center gap-0.5 text-sm">
-          <Clock size={12} />
-          <span>
-            {new Date(task.deadline).toLocaleDateString("ja-JP", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            })}
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <h4 className="font-bold">{task.name}</h4>
-      </CardContent>
-      <CardFooter>
-        <div className="flex items-center gap-1">
-          <Avatar className="size-4">
-            <AvatarImage
-              src={`https://api.dicebear.com/9.x/glass/svg?seed=${task.assign}`}
-            />
-            <AvatarFallback className={`text-white text-xs`}>CN</AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground">{task.assign}</span>
-        </div>
-      </CardFooter>
-    </Card>
+    <Link to={`/group/${task.id}`}>
+      <Card
+        className={`border-neutral-200 shadow-none gap-3 hover:shadow-md transition-shadow`}
+      >
+        <CardHeader className="grid-flow-col justify-between items-center">
+          <PriorityBadge priority={task.priority} />
+          <div className="flex items-center gap-0.5 text-sm">
+            <Clock size={12} />
+            <span>
+              {new Date(task.deadline).toLocaleDateString("ja-JP", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              })}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <h4 className="font-bold">{task.name}</h4>
+        </CardContent>
+        <CardFooter>
+          <div className="flex items-center gap-1">
+            <Avatar className="size-4">
+              <AvatarImage
+                src={`https://api.dicebear.com/9.x/glass/svg?seed=${task.assign}`}
+              />
+              <AvatarFallback className={`text-white text-xs`}>
+                CN
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs text-muted-foreground">{task.assign}</span>
+          </div>
+        </CardFooter>
+      </Card>
+    </Link>
   );
 };
 
@@ -212,6 +175,55 @@ const PriorityBadge = ({
     >
       <Flag size={16} />
       {priority === "high" ? "高" : priority === "middle" ? "中" : "低"}
+    </div>
+  );
+};
+
+const TaskFilter = () => {
+  return (
+    <div className="bg-white rounded-lg p-4">
+      <div className="flex items-center gap-2">
+        <Filter className="size-4 text-primary" />
+        <h3 className="font-semibold">絞り込み</h3>
+      </div>
+
+      <div>
+        <div className="py-3">
+          <h4 className="text-muted-foreground text-sm">優先度</h4>
+          <ul className="flex flex-col gap-2 pt-2">
+            <li className="flex items-center gap-2">
+              <Checkbox id="high" />
+              <Label htmlFor="high">高 (12)</Label>
+            </li>
+            <li className="flex items-center gap-2">
+              <Checkbox id="middle" />
+              <Label htmlFor="middle">中 (4)</Label>
+            </li>
+            <li className="flex items-center gap-2">
+              <Checkbox id="low" />
+              <Label htmlFor="low">低 (8)</Label>
+            </li>
+          </ul>
+        </div>
+
+        <div className="py-2">
+          <h4 className="text-muted-foreground text-sm">担当者</h4>
+          <ul className="flex flex-col gap-2 pt-2">
+            <li className="flex items-center gap-2">
+              <Checkbox id="user1" />
+              <Label htmlFor="user1">佐藤 (12)</Label>
+            </li>
+            <li className="flex items-center gap-2">
+              <Checkbox id="user2" />
+              <Label htmlFor="user2">田中 (4)</Label>
+            </li>
+            <li className="flex items-center gap-2">
+              <Checkbox id="user3" />
+              <Label htmlFor="user3">鈴木 (8)</Label>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 };
