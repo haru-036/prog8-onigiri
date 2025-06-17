@@ -29,7 +29,7 @@ import { Link } from "react-router";
 
 export default function Group() {
   return (
-    <div className="min-h-svh w-full bg-[#FAFAFA] p-6 flex gap-6">
+    <div className="grow w-full bg-neutral-50 p-6 flex gap-6">
       <div className="flex-1 flex gap-6 mx-auto max-w-7xl xl:container">
         <div className="max-w-64 w-full">
           <div className="relative mb-4">
@@ -197,7 +197,7 @@ const PriorityBadge = ({
 
 const TaskFilter = () => {
   return (
-    <div className="bg-white rounded-lg p-4">
+    <div className="bg-white rounded-lg p-4 border-input border">
       <div className="flex items-center gap-2">
         <Filter className="size-4 text-primary" />
         <h3 className="font-semibold">絞り込み</h3>

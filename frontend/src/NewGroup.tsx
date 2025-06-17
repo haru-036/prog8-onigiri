@@ -2,10 +2,7 @@ import { Button } from "./components/ui/button";
 
 function NewGroup() {
   return (
-    <div
-      className="h-screen w-screen flex justify-center items-center  flex-col
-    "
-    >
+    <div className="grow flex justify-center items-center flex-col">
       <div className="text-left">
         <div className="text-2xl pb-4 font-bold ">新規グループ作成</div>
         <div className="pb-4">
