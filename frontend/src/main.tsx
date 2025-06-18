@@ -18,8 +18,8 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/new-group" element={<NewGroup />} />
           <Route path="/group" element={<Group />} />
           <Route path="/group/:taskId" element={<TaskDetail />} />
+          <Route path="/extraction" element={<Extraction />} />
         </Route>
-        <Route path="/extraction" element={<Extraction />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
