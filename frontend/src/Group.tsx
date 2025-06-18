@@ -24,8 +24,9 @@ import {
 } from "./components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
 import { tasks } from "./mock/data";
-import type { Task } from "./type";
+import type { Task } from "./types";
 import { Link } from "react-router";
+import { PriorityBadge } from "./components/priorityBadge";
 
 export default function Group() {
   return (
@@ -162,36 +163,6 @@ const TaskCard = ({ task }: { task: Task }) => {
         </CardFooter>
       </Card>
     </Link>
-  );
-};
-
-const PriorityBadge = ({
-  priority,
-}: {
-  priority: "high" | "middle" | "low";
-}) => {
-  const colors = {
-    high: "text-red-700",
-    middle: "text-amber-600",
-    low: "text-neutral-600",
-  };
-
-  return (
-    <div
-      className={`flex items-center gap-1 text-sm font-semibold ${colors[priority]}`}
-    >
-      <Flag
-        size={16}
-        className={
-          priority === "high"
-            ? "fill-red-700"
-            : priority === "middle"
-            ? "fill-amber-600"
-            : ""
-        }
-      />
-      {priority === "high" ? "高" : priority === "middle" ? "中" : "低"}
-    </div>
   );
 };
 
