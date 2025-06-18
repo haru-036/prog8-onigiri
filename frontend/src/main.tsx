@@ -7,13 +7,14 @@ import Group from "./Group.tsx";
 import NewGroup from "./NewGroup.tsx";
 import TaskDetail from "./TaskDetail.tsx";
 import Layout from "./components/layout.tsx";
+import Result from "./Result.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />} />
-
+        <Route path="/result" element={<Result />} />
         <Route element={<Layout />}>
           <Route path="/new-group" element={<NewGroup />} />
           <Route path="/group" element={<Group />} />
