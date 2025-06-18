@@ -5,25 +5,19 @@ export const PriorityBadge = ({
 }: {
   priority: "high" | "middle" | "low";
 }) => {
-  const colors = {
-    high: "text-red-700",
-    middle: "text-amber-600",
-    low: "text-neutral-600",
+  const styles = {
+    high: { text: "text-red-700", fill: "fill-red-700" },
+    middle: { text: "text-amber-600", fill: "fill-amber-600" },
+    low: { text: "text-neutral-600", fill: "" },
   };
 
   return (
     <div
-      className={`flex items-center gap-1 text-sm font-semibold ${colors[priority]}`}
+      className={`flex items-center gap-1 text-sm font-semibold ${styles[priority].text}`}
     >
       <Flag
         size={16}
-        className={
-          priority === "high"
-            ? "fill-red-700"
-            : priority === "middle"
-            ? "fill-amber-600"
-            : ""
-        }
+        className={styles[priority].fill}
       />
       {priority === "high" ? "高" : priority === "middle" ? "中" : "低"}
     </div>
