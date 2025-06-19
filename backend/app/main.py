@@ -54,7 +54,7 @@ db_dependency=Annotated[Session, Depends(get_db)]
 def send_invite_email(receiver_email: str, group_id: int, invite_link: str):
     # Gmailの送信者情報
     sender_email = "341117lisamilet@gmail.com"
-    app_password = "hmyhpfojiygmsezv"  # アプリパスワード
+    app_password = os.getenv("APP_PASSWORD")  # アプリパスワード
 
     # メールの内容
     subject = f"{group_id}への招待"
