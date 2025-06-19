@@ -239,8 +239,8 @@ async def auth(request: Request, db: db_dependency):
 
 
 
-
-@app.post("/groups/create")
+# グループ作成
+@app.post("/groups")
 async def create_group(group_name:str, request: Request, db: db_dependency):
     user=get_current_user(request)
 
@@ -261,8 +261,33 @@ async def create_group(group_name:str, request: Request, db: db_dependency):
 
     return {"message": f"グループ'{group_name}'を作成し、オーナーとして登録しました。"}
 
+# グループ一覧取得(グループ名＆ユーザーのrole)
+@app.get("/groups")
+async def get_assigned_groups(request: Request,db: db_dependency):
+    user=get_current_user(request)
+    middle_model=db.query(Middle).filter(Middle.user_id==user["id"]).all()
+    groups=[]
+    for group in middle_model:
+        group_model=db.query(Group).filter(Group.id==group.group_id).first()
+        member_length=db.query(Middle).filter(Middle.group_id==group.group_id).count()
+        member_info=db.query(Middle).filter(Middle.group_id==group.group_id).all()
+        member_pictures=[]
+        for member in member_info:
+            user=member.user_id
+            user_model=db.query(User).filter(User.id==user).first()
+            member_pictures.append(user_model.picture)
+        group_object={"name": group_model.name, "role": group.role, "member_length": member_length, "member_pictures": member_pictures}
+        groups.append(group_object)
+    return groups
 
 
+
+# [
+#     {name: "", role:"member", member_length: 0}, # 1グループ分
+#     {name: "", role:"member", member_length: 0}, # 1グループ分
+#     {name: "", role:"member", member_length: 0}, # 1グループ分
+#     {name: "", role:"member", member_length: 0}, # 1グループ分
+# ]
 
 # ログアウトする
 @app.get("/logout")
@@ -287,7 +312,7 @@ async def invite_user(group_id: int, email: str, db: db_dependency, request: Req
     return {"message": "招待メールを送信しました"}
 
 
-
+# 招待されたグループに参加
 @app.get("/join")
 async def join_group(token: str, db: db_dependency, request: Request):
     invitation = db.query(Invitation).filter(Invitation.token == token).first()
