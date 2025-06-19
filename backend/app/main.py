@@ -7,12 +7,14 @@ from authlib.integrations.base_client.errors import MismatchingStateError
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
-from .models import User, Invitation, Middle, Group
+from .models import User, Invitation, Middle, Group, Task
 from .database import get_db, Base, engine
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import uuid
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
 
 
 load_dotenv()
@@ -48,6 +50,47 @@ oauth.register(
 )
 
 db_dependency=Annotated[Session, Depends(get_db)]
+
+
+
+priority_List=["high","middle","low"]
+status_List=["not-started-yet","in-progress","done"]
+
+# BaseModelを継承したクラスとしてデータモデルを宣言
+class TodoRequest(BaseModel):
+    title: str=Field(min_length=3, max_length=100)
+    description: str=Field(min_length=3, max_length=100)
+    deadline: datetime
+    priority: str
+    assign: int=Field(gt=0)
+    status: str
+
+    @field_validator("priority")
+    def priority_name_check(cls, priority): # 第１引数はクラス、第２引数にチェックしたい値
+        if priority in priority_List:
+            return priority
+        else: 
+            raise ValueError("Select 'high', 'middle', or 'low'")
+        
+    @field_validator("status")
+    def status_name_check(cls, status): # 第１引数はクラス、第２引数にチェックしたい値
+        if status in status_List:
+            return status
+        else: 
+            raise ValueError("Select 'not-started-yet', 'in-progress', or 'done'")
+
+    model_config={
+        "json_schema_extra":{
+            "example":{
+                "title":"報告書作成",
+                "description":"前期の報告書",
+                "deadline": "2025-06-25T17:29:00.815Z",
+                "priority":"high",
+                "assign": 1,
+                "status":"not-started-yet"
+            }
+        }
+    }
 
 
 #招待メール送信関数
@@ -269,7 +312,15 @@ async def get_assigned_groups(request: Request,db: db_dependency):
     return groups
 
 #タスク作成
-@app.post("")
+@app.post("/groups/{group_id}/tasks")
+async def create_task(group_id: int, request: Request, todo_request: TodoRequest, db: db_dependency):
+    get_current_user(request)
+    todo_model=Task(**todo_request.model_dump(),group_id=group_id)
+    db.add(todo_model)
+    db.commit()
+    return {"message":"タスクを作成しました"}
+
+
 
 # ログアウトする
 @app.get("/logout")
