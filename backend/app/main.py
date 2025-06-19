@@ -103,28 +103,6 @@ def authorize_owner(user_id: int, group_id: int, db: Session):
     if not middle or middle.role != "owner":
         raise HTTPException(status_code=403, detail="You are not authorized.")
 
-# #グループ作成関数
-# def create_group(group_name:str, user_id: int, db: db_dependency):
-#     if not user_id:
-#         raise HTTPException(status_code=401, detail="Not authenticated")
-#     new_group=Group(
-#         name=group_name
-#     )
-#     db.add(new_group)
-#     db.commit()
-#     db.refresh(new_group) # ID取得のため
-
-#     new_middle_model=Middle(
-#         user_id=user_id,
-#         role="owner",
-#         group_id=new_group.id
-#     )
-#     db.add(new_middle_model)
-#     db.commit()
-
-#     return new_group
-
-
 
 
 # ユーザー情報取得に必要な認可コード取得のためのリダイレクト処理
@@ -239,8 +217,8 @@ async def auth(request: Request, db: db_dependency):
 
 
 
-
-@app.post("/groups/create")
+# グループ作成
+@app.post("/groups")
 async def create_group(group_name:str, request: Request, db: db_dependency):
     user=get_current_user(request)
 
@@ -261,8 +239,37 @@ async def create_group(group_name:str, request: Request, db: db_dependency):
 
     return {"message": f"グループ'{group_name}'を作成し、オーナーとして登録しました。"}
 
+# グループ一覧取得(グループ名＆ユーザーのrole)
+@app.get("/groups")
+async def get_assigned_groups(request: Request,db: db_dependency):
+    user=get_current_user(request)
+    results=(
+        db.query(Middle, Group, User).join(Group, Middle.group_id == Group.id)
+        .join(User, Middle.user_id == User.id)
+        .filter(Middle.user_id == user["id"])
+        .all()
+    )
+    groups=[]
+    for middle, group, user in results:
+        member_pictures=[
+            member_user.picture
+            for member_user in db.query(User)
+            .join(Middle, User.id == Middle.user_id)
+            .filter(Middle.group_id == group.id)
+            .all()
+        ]
+        member_length = len(member_pictures)
+        group_object = {
+            "name": group.name,
+            "role": middle.role,
+            "member_length": member_length,
+            "member_pictures": member_pictures,
+        }
+        groups.append(group_object)
+    return groups
 
-
+#タスク作成
+@app.post("")
 
 # ログアウトする
 @app.get("/logout")
@@ -287,7 +294,7 @@ async def invite_user(group_id: int, email: str, db: db_dependency, request: Req
     return {"message": "招待メールを送信しました"}
 
 
-
+# 招待されたグループに参加
 @app.get("/join")
 async def join_group(token: str, db: db_dependency, request: Request):
     invitation = db.query(Invitation).filter(Invitation.token == token).first()
