@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from .database import Base
 from datetime import datetime, timezone
 
@@ -36,4 +36,14 @@ class Comment(Base):
     task_id = Column(Integer, ForeignKey("tasks.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     contents = Column(String)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, nullable=False)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    token = Column(String, unique=True, nullable=False)
+    is_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
