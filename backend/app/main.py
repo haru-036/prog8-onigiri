@@ -7,7 +7,7 @@ from authlib.integrations.base_client.errors import MismatchingStateError
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
-from .models import User, Invitation
+from .models import User, Invitation, Middle
 from .database import get_db, Base, engine
 import smtplib
 from email.mime.text import MIMEText
@@ -151,7 +151,7 @@ async def auth(request: Request, db: db_dependency):
 
     request.session["user"]={
         "id": user["sub"],
-        "name": user.get("name"),# getするのは値がない可能性があるから
+        "name": user.get("name") # getするのは値がない可能性があるから
     }
 
     google_id = user["sub"]
@@ -165,11 +165,14 @@ async def auth(request: Request, db: db_dependency):
             email = user.get("email"),
             picture = user.get("picture")
         )
-        db.add(new_user)
+        db.add(new_user) #db.add() は「新しく追加する（＝セッションに知られていない）オブジェクト」に使う
         db.commit()
+        db.refresh(new_user) 
+        existing_user = new_user
     
     # グループに入っているかどうか
-    if existing_user.group_id:
+    middle_model=db.query(Middle).filter(Middle.user_id==existing_user.id).first()
+    if middle_model and middle_model.group_id:
         return{"message":"Move your task screen"}
     
     # 招待メールから来てる場合招待トークンを持ってる
@@ -177,20 +180,31 @@ async def auth(request: Request, db: db_dependency):
     if invite_token:
         invitation = db.query(Invitation).filter(Invitation.token == invite_token).first()
         if invitation and not invitation.is_accepted:# 招待されて参加済みじゃないか
-            # email一致を確認 -> 
+            # email一致を確認 -> 「招待リンクを踏んできた人は招待した人だ」
             if invitation.email == user.get("email"):
-                # ユーザーを検索
-                user = db.query(User).filter(User.email == user.get("email")).first()
-                # 招待済みユーザーのグループIDを登録、参加済みを編集
-                if user:
-                    user.group_id = invitation.group_id
+                user_model=existing_user
+                # すでにMiddleに登録されているか確認(何回も招待リンクを踏むと重複して登録される)
+                existing_middle = db.query(Middle).filter(
+                    Middle.user_id == user_model.id,
+                    Middle.group_id == invitation.group_id
+                ).first()
+
+                    # 招待済みユーザーのグループIDを登録、参加済みを編集
+                if not existing_middle:
+                    new_middle_model=Middle(
+                        user_id=user_model.id,
+                        role="member",
+                        group_id=invitation.group_id
+                    )
+                    db.add(new_middle_model)
                     invitation.is_accepted = True
-                    user.role = "member"
-                    db.commit()
-                    # 完了後にグループ画面にリダイレクト
-                    return {"message" : "User joined invited group."} 
+                    db.commit() # .query() で取得した既存オブジェクトなので、もうセッションに「いる」＝ addしなくていい
+                    # 完了後にグループ一覧画面(招待されたグループだけしかないけど)にリダイレクト
+                    return {"message" : "Move your task screen."} 
     # グループに入ってないし、招待された人でもない -> 「新しくグループを作るオーナーだ」
     return {"message": "Move new group making screen"}
+
+
 
 
 

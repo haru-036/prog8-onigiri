@@ -9,13 +9,12 @@ class User(Base):
     user_name = Column(String)
     email = Column(String)
     picture = Column(String)
-    role = Column(String, default=None)
-    group_id = Column(Integer, ForeignKey("groups.id"), default=None)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 class Task(Base):
@@ -46,4 +45,12 @@ class Invitation(Base):
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     token = Column(String, unique=True, nullable=False)
     is_accepted = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+class Middle(Base):
+    __tablename__="middles"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    role = Column(String, default=None)
+    group_id = Column(Integer, ForeignKey("groups.id"), default=None)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
