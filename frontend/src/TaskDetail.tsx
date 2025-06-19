@@ -193,7 +193,7 @@ const StatusBadge = ({
   return (
     <Badge
       className={`text-xs border border-black/10 rounded-full ${
-        statusColors[status] || "bg-neutral-100-200 text-neutral-800"
+        statusColors[status] || "bg-neutral-100 text-neutral-800"
       }`}
     >
       {status === "not-started-yet"
