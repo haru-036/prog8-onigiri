@@ -9,6 +9,7 @@ import TaskDetail from "./TaskDetail.tsx";
 import Layout from "./components/layout.tsx";
 import Result from "./Result.tsx";
 import Extraction from "./Extraction.tsx";
+import GroupsList from "./GroupsList.tsx";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/" element={<App />} />
 
         <Route element={<Layout />}>
+          <Route path="/groups" element={<GroupsList />} />
           <Route path="/new-group" element={<NewGroup />} />
           <Route path="/group" element={<Group />} />
           <Route path="/group/:taskId" element={<TaskDetail />} />
