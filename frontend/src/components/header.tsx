@@ -1,6 +1,17 @@
 import { FileText, MailPlus, Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
 
 export default function Header() {
   return (
@@ -14,10 +25,38 @@ export default function Header() {
         </div>
         <div className="flex items-center gap-4">
           {/* TODO: メンバー招待はリーダーだけに表示する */}
-          <Button variant={"outline"}>
-            <MailPlus />
-            メンバー招待
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant={"outline"}>
+                <MailPlus />
+                メンバー招待
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>メンバー招待</DialogTitle>
+                <DialogDescription>
+                  メンバーを招待するには、メールアドレスを入力してください。
+                  招待されたメンバーは、タスクの閲覧やコメントが可能になります。
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">メールアドレス</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="example@email.com"
+                  className="py-2"
+                  required
+                  autoFocus
+                />
+              </div>
+              <DialogFooter className="sm:justify-end">
+                <Button type="button">送信</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button>
             <Plus />
             新規タスク
