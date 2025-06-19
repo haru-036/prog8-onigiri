@@ -7,7 +7,7 @@ from authlib.integrations.base_client.errors import MismatchingStateError
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
-from .models import User, Invitation, Middle
+from .models import User, Invitation, Middle, Group
 from .database import get_db, Base, engine
 import smtplib
 from email.mime.text import MIMEText
@@ -29,7 +29,7 @@ app.add_middleware(
     session_cookie="session",  # クライアントsessionという名前のクッキーを渡すし、参照する
     https_only=False, # HTTP でもクッキーを送信できるように。本番環境ではTrueにする
 )
-    
+# max_ageを指定していないのでsessionクッキーはブラウザをと知ると消える -> ログイン状態はブラウザを開いている限り続く   
 
 
 # AuthlibのOAuthクラスをインスタンス化し、複数プロバイダをまとめて管理できる窓口を作成
@@ -94,7 +94,35 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="not authenticated")
     return user
 
+#　オーナーかどうか
+def authorize_owner(user_id: int, group_id: int, db: Session):
+    middle = db.query(Middle).filter(
+        Middle.user_id == user_id,
+        Middle.group_id == group_id
+    ).first()
+    if not middle or middle.role != "owner":
+        raise HTTPException(status_code=403, detail="You are not authorized.")
 
+# #グループ作成関数
+# def create_group(group_name:str, user_id: int, db: db_dependency):
+#     if not user_id:
+#         raise HTTPException(status_code=401, detail="Not authenticated")
+#     new_group=Group(
+#         name=group_name
+#     )
+#     db.add(new_group)
+#     db.commit()
+#     db.refresh(new_group) # ID取得のため
+
+#     new_middle_model=Middle(
+#         user_id=user_id,
+#         role="owner",
+#         group_id=new_group.id
+#     )
+#     db.add(new_middle_model)
+#     db.commit()
+
+#     return new_group
 
 
 
@@ -149,10 +177,10 @@ async def auth(request: Request, db: db_dependency):
     # ユーザー情報をuserinfoから取得
     user = token["userinfo"]
 
-    request.session["user"]={
-        "id": user["sub"],
-        "name": user.get("name") # getするのは値がない可能性があるから
-    }
+    # request.session["user"]={
+    #     "sub": user["sub"],
+    #     "name": user.get("name") # getするのは値がない可能性があるから
+    # }
 
     google_id = user["sub"]
     existing_user = db.query(User).filter(User.sub==google_id).first()
@@ -170,6 +198,12 @@ async def auth(request: Request, db: db_dependency):
         db.refresh(new_user) 
         existing_user = new_user
     
+    request.session["user"]={
+        "id": existing_user.id,
+        "sub": existing_user.sub,
+        "name": existing_user.user_name
+    }
+
     # グループに入っているかどうか
     middle_model=db.query(Middle).filter(Middle.user_id==existing_user.id).first()
     if middle_model and middle_model.group_id:
@@ -182,17 +216,16 @@ async def auth(request: Request, db: db_dependency):
         if invitation and not invitation.is_accepted:# 招待されて参加済みじゃないか
             # email一致を確認 -> 「招待リンクを踏んできた人は招待した人だ」
             if invitation.email == user.get("email"):
-                user_model=existing_user
                 # すでにMiddleに登録されているか確認(何回も招待リンクを踏むと重複して登録される)
                 existing_middle = db.query(Middle).filter(
-                    Middle.user_id == user_model.id,
+                    Middle.user_id == existing_user.id,
                     Middle.group_id == invitation.group_id
                 ).first()
 
                     # 招待済みユーザーのグループIDを登録、参加済みを編集
                 if not existing_middle:
                     new_middle_model=Middle(
-                        user_id=user_model.id,
+                        user_id=existing_user.id,
                         role="member",
                         group_id=invitation.group_id
                     )
@@ -207,6 +240,29 @@ async def auth(request: Request, db: db_dependency):
 
 
 
+@app.post("/groups/create")
+async def create_group(group_name:str, request: Request, db: db_dependency):
+    user=get_current_user(request)
+
+    new_group=Group(
+        name=group_name
+    )
+    db.add(new_group)
+    db.commit()
+    db.refresh(new_group) # ID取得のため
+
+    new_middle_model=Middle(
+        user_id=user["id"],
+        role="owner",
+        group_id=new_group.id
+    )
+    db.add(new_middle_model)
+    db.commit()
+
+    return {"message": f"グループ'{group_name}'を作成し、オーナーとして登録しました。"}
+
+
+
 
 # ログアウトする
 @app.get("/logout")
@@ -215,9 +271,11 @@ async def logout(request: Request):
     return RedirectResponse(url="/login") # ログイン画面に戻す
     
 
-# 招待メールを送る
+# 招待エンドポイント
 @app.post("/groups/{group_id}/invite")
-async def invite_user(group_id: int, email: str, db: db_dependency):
+async def invite_user(group_id: int, email: str, db: db_dependency, request: Request):
+    user=get_current_user(request)
+    authorize_owner(user["id"],group_id, db)
     # どのユーザーをどのグループに招待したか
     token = str(uuid.uuid4())  # UUID(University Unique identifier)=ランダムな一意識別子を生成する関数
     # 保存
@@ -227,6 +285,8 @@ async def invite_user(group_id: int, email: str, db: db_dependency):
     invite_link = f"http://localhost:8000/join?token={token}"  # トークンは本来ランダム生成
     send_invite_email(email, group_id, invite_link)
     return {"message": "招待メールを送信しました"}
+
+
 
 @app.get("/join")
 async def join_group(token: str, db: db_dependency, request: Request):
