@@ -103,28 +103,6 @@ def authorize_owner(user_id: int, group_id: int, db: Session):
     if not middle or middle.role != "owner":
         raise HTTPException(status_code=403, detail="You are not authorized.")
 
-# #グループ作成関数
-# def create_group(group_name:str, user_id: int, db: db_dependency):
-#     if not user_id:
-#         raise HTTPException(status_code=401, detail="Not authenticated")
-#     new_group=Group(
-#         name=group_name
-#     )
-#     db.add(new_group)
-#     db.commit()
-#     db.refresh(new_group) # ID取得のため
-
-#     new_middle_model=Middle(
-#         user_id=user_id,
-#         role="owner",
-#         group_id=new_group.id
-#     )
-#     db.add(new_middle_model)
-#     db.commit()
-
-#     return new_group
-
-
 
 
 # ユーザー情報取得に必要な認可コード取得のためのリダイレクト処理
@@ -265,29 +243,33 @@ async def create_group(group_name:str, request: Request, db: db_dependency):
 @app.get("/groups")
 async def get_assigned_groups(request: Request,db: db_dependency):
     user=get_current_user(request)
-    middle_model=db.query(Middle).filter(Middle.user_id==user["id"]).all()
+    results=(
+        db.query(Middle, Group, User).join(Group, Middle.group_id == Group.id)
+        .join(User, Middle.user_id == User.id)
+        .filter(Middle.user_id == user["id"])
+        .all()
+    )
     groups=[]
-    for group in middle_model:
-        group_model=db.query(Group).filter(Group.id==group.group_id).first()
-        member_length=db.query(Middle).filter(Middle.group_id==group.group_id).count()
-        member_info=db.query(Middle).filter(Middle.group_id==group.group_id).all()
-        member_pictures=[]
-        for member in member_info:
-            user=member.user_id
-            user_model=db.query(User).filter(User.id==user).first()
-            member_pictures.append(user_model.picture)
-        group_object={"name": group_model.name, "role": group.role, "member_length": member_length, "member_pictures": member_pictures}
+    for middle, group, user in results:
+        member_pictures=[
+            member_user.picture
+            for member_user in db.query(User)
+            .join(Middle, User.id == Middle.user_id)
+            .filter(Middle.group_id == group.id)
+            .all()
+        ]
+        member_length = len(member_pictures)
+        group_object = {
+            "name": group.name,
+            "role": middle.role,
+            "member_length": member_length,
+            "member_pictures": member_pictures,
+        }
         groups.append(group_object)
     return groups
 
-
-
-# [
-#     {name: "", role:"member", member_length: 0}, # 1グループ分
-#     {name: "", role:"member", member_length: 0}, # 1グループ分
-#     {name: "", role:"member", member_length: 0}, # 1グループ分
-#     {name: "", role:"member", member_length: 0}, # 1グループ分
-# ]
+#タスク作成
+@app.post("")
 
 # ログアウトする
 @app.get("/logout")
