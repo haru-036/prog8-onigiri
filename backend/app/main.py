@@ -318,6 +318,7 @@ async def create_task(group_id: int, request: Request, todo_request: TodoRequest
     todo_model=Task(**todo_request.model_dump(),group_id=group_id)
     db.add(todo_model)
     db.commit()
+    return {"message":"タスクを作成しました"}
 
 
 
