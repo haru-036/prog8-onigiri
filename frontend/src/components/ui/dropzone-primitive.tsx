@@ -1,5 +1,3 @@
-"use client";
-
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
 import * as React from "react";

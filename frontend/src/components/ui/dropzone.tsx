@@ -1,5 +1,3 @@
-"use client";
-
 import { Primitive } from "@radix-ui/react-primitive";
 import { Ban, CheckCircle2, Upload } from "lucide-react";
 import * as React from "react";
@@ -12,7 +10,7 @@ function Dropzone(props: React.ComponentProps<typeof DropzonePrimitive.Root>) {
 }
 
 function DropzoneInput(
-  props: React.ComponentProps<typeof DropzonePrimitive.Input>,
+  props: React.ComponentProps<typeof DropzonePrimitive.Input>
 ) {
   return <DropzonePrimitive.Input data-slot="dropzone-input" {...props} />;
 }
@@ -26,7 +24,7 @@ function DropzoneZone({
       data-slot="dropzone-zone"
       className={cn(
         "border-input hover:border-accent-foreground/50 hover:bg-accent focus-visible:ring-ring data-[drag-active]:border-accent-foreground/50 data-[drag-reject]:border-destructive data-[drag-active]:bg-accent data-[drag-reject]:bg-destructive/30 cursor-pointer rounded-md border-2 border-dashed p-6 shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none data-[disabled]:cursor-not-allowed data-[disabled]:border-inherit data-[disabled]:bg-inherit data-[disabled]:opacity-50 data-[drag-reject]:cursor-no-drop data-[no-click]:cursor-default",
-        className,
+        className
       )}
       {...props}
     />
@@ -104,13 +102,13 @@ function DropzoneDescription({
 }
 
 function DropzoneTrigger(
-  props: React.ComponentProps<typeof DropzonePrimitive.Trigger>,
+  props: React.ComponentProps<typeof DropzonePrimitive.Trigger>
 ) {
   return <DropzonePrimitive.Trigger data-slot="dropzone-trigger" {...props} />;
 }
 
 function DropzoneAccepted(
-  props: React.ComponentProps<typeof DropzonePrimitive.Accepted>,
+  props: React.ComponentProps<typeof DropzonePrimitive.Accepted>
 ) {
   return (
     <DropzonePrimitive.Accepted data-slot="dropzone-accepted" {...props} />
@@ -118,7 +116,7 @@ function DropzoneAccepted(
 }
 
 function DropzoneRejected(
-  props: React.ComponentProps<typeof DropzonePrimitive.Rejected>,
+  props: React.ComponentProps<typeof DropzonePrimitive.Rejected>
 ) {
   return (
     <DropzonePrimitive.Rejected data-slot="dropzone-rejected" {...props} />
