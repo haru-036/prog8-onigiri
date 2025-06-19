@@ -40,8 +40,8 @@ export default function Header() {
                   招待されたメンバーは、タスクの閲覧やコメントが可能になります。
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="email">Email</Label>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">メールアドレス</Label>
                 <Input
                   id="email"
                   type="email"
