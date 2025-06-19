@@ -14,11 +14,12 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />} />
-        <Route path="/result" element={<Result />} />
+
         <Route element={<Layout />}>
           <Route path="/new-group" element={<NewGroup />} />
           <Route path="/group" element={<Group />} />
           <Route path="/group/:taskId" element={<TaskDetail />} />
+          <Route path="/result" element={<Result />} />
         </Route>
       </Routes>
     </BrowserRouter>
