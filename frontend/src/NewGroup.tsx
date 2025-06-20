@@ -12,6 +12,9 @@ import { Input } from "./components/ui/input";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "./lib/axios";
+import { useNavigate } from "react-router";
 
 const formSchema = z.object({
   groupname: z.string().min(1).max(20),
@@ -24,10 +27,25 @@ function NewGroup() {
       groupname: "",
     },
   });
+  const navigate = useNavigate();
+
+  const mutation = useMutation({
+    mutationKey: ["createGroup"],
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const response = await api.post("/groups", {
+        group_name: values.groupname,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      navigate("/groups");
+    },
+  });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    mutation.mutate(values);
   }
+
   return (
     <div className="grow flex justify-center items-center flex-col">
       <div className="text-left">
@@ -63,7 +81,7 @@ function NewGroup() {
             <Button
               className="w-full"
               type="submit"
-              disabled={!form.formState.isValid}
+              disabled={!form.formState.isValid || mutation.isPending}
             >
               グループを作成する
             </Button>

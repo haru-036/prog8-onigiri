@@ -11,6 +11,7 @@ import Result from "./Result.tsx";
 import Extraction from "./Extraction.tsx";
 import GroupsList from "./GroupsList.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import AuthCallback from "./AuthCallback.tsx";
 
 const queryClient = new QueryClient();
 
@@ -20,12 +21,15 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<App />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           <Route element={<Layout />}>
-            <Route path="/groups" element={<GroupsList />} />
             <Route path="/new-group" element={<NewGroup />} />
-            <Route path="/group" element={<Group />} />
-            <Route path="/group/:taskId" element={<TaskDetail />} />
+
+            <Route path="/groups" element={<GroupsList />} />
+            <Route path="/groups/:groupId" element={<Group />} />
+            <Route path="/groups/:groupId/:taskId" element={<TaskDetail />} />
+
             <Route path="/extraction" element={<Extraction />} />
             <Route path="/result" element={<Result />} />
           </Route>
