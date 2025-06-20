@@ -47,6 +47,7 @@ class Invitation(Base):
     is_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
+# ユーザーがどのグループになんのroleで所属するのを関連づけるテーブル(ユーザー１人に対し、roleとgroup_idが複数存在)
 class Middle(Base):
     __tablename__="middles"
     id = Column(Integer, primary_key=True, index=True)
