@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "./components/ui/textarea";
 import { Button } from "./components/ui/button";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 
 export default function TaskDetail() {
   const [open, setOpen] = useState(false);
@@ -39,6 +39,8 @@ export default function TaskDetail() {
   );
   const [title, setTitle] = useState("タスク名タスク名");
   const [description, setDescription] = useState("タスクの説明タスクの説明");
+  const urlParams = useParams<{ groupId: string }>();
+  const groupId = urlParams.groupId;
 
   return (
     <div className="w-full grow bg-neutral-50 flex flex-col">
@@ -48,7 +50,7 @@ export default function TaskDetail() {
           variant={"link"}
           className="w-fit mb-2 has-[>svg]:px-0 text-muted-foreground"
         >
-          <Link to={"/group"}>
+          <Link to={`/groups/${groupId}`}>
             <ChevronLeft />
             チームタスク一覧に戻る
           </Link>

@@ -2,16 +2,17 @@ import { Button } from "./components/ui/button";
 
 function App() {
   return (
-    <div
-      className="h-screen w-screen flex justify-center items-center  flex-col
-    "
-    >
+    <div className="min-h-svh flex justify-center items-center flex-col">
       <div className="text-left">
-        <div className="text-2x pb-8 font-bold ">
+        <div className="text-2xl pb-8 font-bold ">
           ミーティング後、 <br />
           議事録からタスクを自動追加。
         </div>
-        <Button>Googleアカウントで始める</Button>
+        <Button size={"lg"} className="text-base" asChild>
+          <a href={`${import.meta.env.VITE_API_URL}/login`}>
+            Googleアカウントで始める
+          </a>
+        </Button>
       </div>
     </div>
   );

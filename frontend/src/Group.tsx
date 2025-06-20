@@ -127,7 +127,7 @@ export default function Group() {
 
 const TaskCard = ({ task }: { task: Task }) => {
   return (
-    <Link to={`/group/${task.id}`}>
+    <Link to={`/groups/${task.groupId}/${task.id}`}>
       <Card
         className={`border-neutral-200 shadow-none gap-3 hover:shadow-md transition-shadow`}
       >
