@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, Query, Path
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
@@ -6,14 +6,14 @@ import os
 from authlib.integrations.base_client.errors import MismatchingStateError
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from typing import Annotated
-from .models import User, Invitation, Middle, Group, Task
+from typing import Annotated, List, Optional, Literal
+from .models import User, Invitation, Middle, Group, Task, Comment
 from .database import get_db, Base, engine
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import uuid
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, EmailStr
 from datetime import datetime
 
 
@@ -91,6 +91,33 @@ class TodoRequest(BaseModel):
             }
         }
     }
+
+class CommentRequest(BaseModel):
+    contents: str=Field(min_length=3, max_length=100)
+
+class InviteRequest(BaseModel):
+    email: EmailStr
+
+class TaskResponse(BaseModel):
+    id: int
+    title : str
+    description :str
+    deadline :datetime
+    priority :str
+    assign : int
+    status : str
+    group_id : int
+
+class GroupNameRequest(BaseModel):
+    name: str=Field(min_length=3)
+
+class MembersResponse(BaseModel):
+    id: int
+    user_name: str
+    picture: str
+
+    class Config:
+        orm_mode = True
 
 
 #招待メール送信関数
@@ -225,11 +252,6 @@ async def auth(request: Request, db: db_dependency):
         "name": existing_user.user_name
     }
 
-    # グループに入っているかどうか
-    middle_model=db.query(Middle).filter(Middle.user_id==existing_user.id).first()
-    if middle_model and middle_model.group_id:
-        return{"message":"Move your task screen"}
-    
     # 招待メールから来てる場合招待トークンを持ってる
     invite_token = request.session.get("invite_token")
     if invite_token:
@@ -262,12 +284,10 @@ async def auth(request: Request, db: db_dependency):
 
 # グループ作成
 @app.post("/groups")
-async def create_group(group_name:str, request: Request, db: db_dependency):
+async def create_group(group_name_request: GroupNameRequest, request: Request, db: db_dependency):
     user=get_current_user(request)
 
-    new_group=Group(
-        name=group_name
-    )
+    new_group=Group(**group_name_request.model_dump())
     db.add(new_group)
     db.commit()
     db.refresh(new_group) # ID取得のため
@@ -280,7 +300,7 @@ async def create_group(group_name:str, request: Request, db: db_dependency):
     db.add(new_middle_model)
     db.commit()
 
-    return {"message": f"グループ'{group_name}'を作成し、オーナーとして登録しました。"}
+    return {"message": f"グループ'{new_group.name}'を作成し、オーナーとして登録しました。"}
 
 # グループ一覧取得(グループ名＆ユーザーのrole)
 @app.get("/groups")
@@ -303,6 +323,7 @@ async def get_assigned_groups(request: Request,db: db_dependency):
         ]
         member_length = len(member_pictures)
         group_object = {
+            "id":group.id,
             "name": group.name,
             "role": middle.role,
             "member_length": member_length,
@@ -320,6 +341,62 @@ async def create_task(group_id: int, request: Request, todo_request: TodoRequest
     db.commit()
     return {"message":"タスクを作成しました"}
 
+# コメント投稿
+@app.post("/tasks/{task_id}/comments")
+async def post_comment(task_id:int, comment_request: CommentRequest,request: Request, db: db_dependency):
+    #ユーザー情報取ってくる
+    user=get_current_user(request)
+    #このタスクはタスクDBに存在するか
+    task=db.query(Task).filter(Task.id==task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="タスクが存在しません")
+    # アクセスしているユーザーがこのtaskを作成したグループのメンバーか -> Middleテーブルでuserのidと一致するカラムを絞り込む＆その中からこのタスクを作成したグループのidと一致するものがあるか
+    middle_model=db.query(Middle).filter(Middle.user_id==user["id"]).filter(Middle.group_id==task.group_id).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このグループに所属していないためコメントできません")
+    comment_model=Comment(**comment_request.model_dump(), task_id=task_id, user_id=user["id"])
+    db.add(comment_model)
+    db.commit()
+    return {"message":"コメントを投稿しました"}
+
+# 自分のグループのタスク一覧取得
+@app.get("/groups/{group_id}/tasks",response_model=List[TaskResponse])
+async def get_all_tasks(
+    request: Request, 
+    db: db_dependency, 
+    group_id: int=Path(gt=0),
+    status: Optional[Literal["todo", "in_progress", "done"]]=Query(None),
+    priority: Optional[Literal["high", "middle", "low"]]=Query(None),
+    assign: Optional[int]=Query(None, gt=0)
+    ):
+    user = get_current_user(request)
+    #このユーザーはこのグループに所属しているのか
+    middle_model=db.query(Middle).filter(Middle.user_id==user["id"]).filter(Middle.group_id==group_id).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このグループに所属していないのでタスクを取得できませんでした")
+    query=db.query(Task).filter(Task.group_id==group_id)
+    #statusで絞り込む
+    if status:
+        query=query.filter(Task.status==status)
+    # priorityで絞り込む
+    if priority:
+        query=query.filter(Task.priority==priority)
+    # assignで絞り込む
+    if assign:
+        query=query.filter(Task.assign==assign)
+    tasks=query.all()
+    
+    return tasks
+
+#グループのメンバー一覧取得
+@app.get("/groups/{group_id}/members", response_model=List[MembersResponse])
+async def get_all_member(db: db_dependency, group_id:int=Path(gt=0)):
+    middle_model=db.query(Middle).filter(Middle.group_id==group_id).all()
+    if not middle_model:
+        raise HTTPException(status_code=404, detail="グループが存在しません")
+    users=[m.user_id for m in middle_model]
+    user_model=db.query(User).filter(User.id.in_(users)).all()
+    return user_model
 
 
 # ログアウトする
@@ -331,17 +408,17 @@ async def logout(request: Request):
 
 # 招待エンドポイント
 @app.post("/groups/{group_id}/invite")
-async def invite_user(group_id: int, email: str, db: db_dependency, request: Request):
+async def invite_user(group_id: int, db: db_dependency, request: Request, invite_request: InviteRequest):
     user=get_current_user(request)
     authorize_owner(user["id"],group_id, db)
     # どのユーザーをどのグループに招待したか
     token = str(uuid.uuid4())  # UUID(University Unique identifier)=ランダムな一意識別子を生成する関数
     # 保存
-    invitation_model = Invitation(email=email, group_id=group_id, token=token)
+    invitation_model = Invitation(**invite_request.model_dump(), group_id=group_id, token=token)
     db.add(invitation_model)
     db.commit()
     invite_link = f"http://localhost:8000/join?token={token}"  # トークンは本来ランダム生成
-    send_invite_email(email, group_id, invite_link)
+    send_invite_email(invite_request.email, group_id, invite_link)
     return {"message": "招待メールを送信しました"}
 
 
