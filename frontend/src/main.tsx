@@ -10,21 +10,27 @@ import Layout from "./components/layout.tsx";
 import Result from "./Result.tsx";
 import Extraction from "./Extraction.tsx";
 import GroupsList from "./GroupsList.tsx";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
 
-        <Route element={<Layout />}>
-          <Route path="/groups" element={<GroupsList />} />
-          <Route path="/new-group" element={<NewGroup />} />
-          <Route path="/group" element={<Group />} />
-          <Route path="/group/:taskId" element={<TaskDetail />} />
-          <Route path="/extraction" element={<Extraction />} />
-          <Route path="/result" element={<Result />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          <Route element={<Layout />}>
+            <Route path="/groups" element={<GroupsList />} />
+            <Route path="/new-group" element={<NewGroup />} />
+            <Route path="/group" element={<Group />} />
+            <Route path="/group/:taskId" element={<TaskDetail />} />
+            <Route path="/extraction" element={<Extraction />} />
+            <Route path="/result" element={<Result />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   </StrictMode>
 );
