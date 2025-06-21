@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import Statistics from "./Statistics";
+import Origin from "./Origin";
 
 function Result() {
   return (
@@ -56,7 +57,10 @@ function Result() {
             </div>
           </div>
         </div>
-        <Statistics />
+        <div className="flex-col">
+          <Statistics />
+          <Origin />
+        </div>
       </div>
     </div>
   );
