@@ -26,10 +26,15 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+
+origins = [
+    "https://meetask.harurahu.workers.dev",  # フロントエンドのオリジン
+    "http://localhost:5173",  # ローカル開発環境のオリジン
+]
 # CORSミドルウェアの設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # どのオリジンからのリクエストも許可
+    allow_origins=origins,  # どのオリジンからのリクエストも許可
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -280,7 +285,7 @@ async def auth(request: Request, db: db_dependency):
     request.session["user"]={
         "id": existing_user.id,
         "sub": existing_user.sub,
-        "name": existing_user.user_name,
+        "user_name": existing_user.user_name,
         "picture": existing_user.picture
     }
 
