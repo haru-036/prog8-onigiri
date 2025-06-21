@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, Query, Path
+from fastapi import FastAPI, Request, HTTPException, Depends, Query, Path, UploadFile, File
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
@@ -14,10 +14,17 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import uuid
 from pydantic import BaseModel, Field, field_validator, EmailStr
-from datetime import datetime
+from datetime import datetime,date, timedelta
 from sqlalchemy.orm import joinedload
 from fastapi.middleware.cors import CORSMiddleware
-
+from google import generativeai as genai
+import re
+from docx import Document
+import io
+import fitz  # PyMuPDF
+import pdfplumber
+from fastapi.responses import JSONResponse
+import json
 
 load_dotenv()
 
@@ -164,6 +171,8 @@ class UpdateTaskRequest(BaseModel):
     priority: Optional[Literal["high", "middle", "low"]] = None
     assign: Optional[int] = Field(default=None, gt=0)
 
+class MinutesTextRequest(BaseModel):
+    text: str
 
 #招待メール送信関数
 def send_invite_email(receiver_email: str, group_name: str, invite_link: str):
@@ -656,3 +665,155 @@ async def join_group(token: str, db: db_dependency, request: Request):
     # /login にリダイレクト（Googleログインを開始させるため）
     return RedirectResponse(url="/login")
     
+
+
+
+
+#AIタスク抽出機能追加
+
+
+# --- APIキーの設定 ---
+API_KEY = os.getenv("GEMINI_API_KEY")
+if not API_KEY:
+    raise ValueError("GEMINI_API_KEY not set in environment")
+
+genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# --- リクエスト/レスポンスのデータモデル ---
+
+class TaskItem(BaseModel):
+    title: str
+    description: str
+    deadline: Optional[str] = None
+    priority: Optional[Literal["high", "middle", "low"]] = None
+    assign: Optional[str] = None
+    status: Optional[Literal["not-started-yet", "in-progress", "done"]] = None
+
+class MeetingMinutes(BaseModel):
+    text: str
+
+
+# --- ファイル読み取り関数 ---
+def extract_text_from_file(file: UploadFile) -> str:
+    ext = file.filename.split('.')[-1].lower()
+    content = file.file.read()
+
+    if ext == "txt":
+        return content.decode("utf-8")
+    elif ext == "docx":
+        doc = Document(io.BytesIO(content))
+        return "\n".join(p.text for p in doc.paragraphs)
+    elif ext == "pdf":
+        text = ""
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            for page in doc:
+                text += page.get_text()
+        return text
+    else:
+        raise HTTPException(status_code=400, detail="対応していないファイル形式です（.txt/.docx/.pdf）")
+
+# --- プロンプトテンプレート ---
+def generate_prompt(meeting_text: str) -> str:
+    return f"""
+あなたはプロジェクトマネージャーのアシスタントAIです。  
+会議議事録から、必要なタスクを抽出し、それぞれに以下の形式で詳細なJSONオブジェクトとして出力してください。
+議事録は、直接テキストで入力される場合と、ファイル（.txt / .md / .docx）としてアップロードされる場合があります。
+ファイルが渡されている場合はその内容を優先的に読み取り、議事録本文として扱ってください。
+テキスト入力がある場合は、それをそのまま議事録とみなしてください。
+いずれの場合も同じ出力フォーマットでタスクを抽出してください。
+
+特に `description` には、議事録内に記載された**タスクの背景、目的、注意点、何をなぜやるのかなど**をできるだけ詳細に含めてください。  
+改行を含む複数行の説明でも問題ありません。
+
+priority は以下の基準で分類してください：
+- "high": 緊急対応、3日以内の納期、対外的な影響がある業務
+- "middle": 期限はあるが緊急でない通常タスク
+- "low": 期限未定、下準備・補助タスク、他タスク依存のもの
+割り当ては realistic に行い、すべてを high にしないでください。
+
+締め切り（deadline）は、議事録内に「来週中」「7月頭」「6月末ごろ」などの曖昧な表現がある場合でも、できる限り具体的な ISO 日付（YYYY-MM-DD）形式に変換してください。
+
+変換ルールの例：
+- 「来週中」→ 会議日から数えて最初の月曜日〜金曜日の範囲内の日付（例:会議が6/18なら「来週中」は6/24〜6/28のいずれか）
+- 「7月頭」→ 7月1日〜7月5日あたり（デフォルトは7月3日）
+- 「6月末」→ 6月30日（月末）
+- 「近日中」「今週中」→ 会議日から数えて3営業日以内
+- 「〇日までに」などがあればそのまま使う
+もし特定が難しい場合は `null` にしてください。
+
+
+例（議事録）:
+・新商品キャンペーンに向けた資料を来週中に田中さんが作成。ターゲットは20代女性で、SNS投稿も意識するようにとの指示あり。
+・山本さんは、主要競合のSNS運用調査を6月25日までに行うことに。過去3か月の投稿分析を含めてほしいとのこと。
+
+出力: json
+[
+  {
+    "title": "キャンペーン資料の作成",
+    "description": "田中さんには、新商品キャンペーンに向けた資料を来週中に作成してもらいます。\\n対象は20代女性で、特にSNSでの拡散を意識したトーンと内容にするように指示がありました。\\n既存資料のテンプレートは使わず、自由な構成で作成して問題ありません。",
+    "deadline": "期限未定",
+    "priority": "middle",
+    "assign": "田中さん"
+  },
+  {
+    "title": "競合SNS運用の調査",
+    "description": "山本さんは、主要競合（A社、B社）のSNS運用状況について調査を行います。\\n締切は6月25日。\\n調査内容には、過去3か月の投稿傾向・反応・キャンペーン施策の分析を含める必要があります。\\n参考資料は共有フォルダにあります。",
+    "deadline": "2025-06-25",
+    "priority": "high",
+    "assign": "山本さん"
+  }
+]
+【議事録】
+---
+{meeting_text}
+"""
+
+# --- テキスト入力のエンドポイント ---
+@app.post("/minutes/tasks", response_model=List[TaskItem])
+async def extract_tasks(meeting_minutes: MeetingMinutes):
+    if not meeting_minutes.text or len(meeting_minutes.text) < 50:
+        raise HTTPException(status_code=400, detail="議事録テキストが短すぎるか空です。")
+
+    prompt = generate_prompt(meeting_minutes.text)
+
+    try:
+        response = model.generate_content(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
+
+# --- ファイルアップロードのエンドポイント ---
+@app.post("/minutes/tasks-from-file", response_model=List[TaskItem])
+async def extract_tasks_from_file(file: UploadFile = File(...)):
+    try:
+        meeting_text = extract_text_from_file(file)
+        if not meeting_text or len(meeting_text) < 50:
+            raise HTTPException(status_code=400, detail="議事録のテキストが短すぎるか空です。")
+
+        prompt = generate_prompt(meeting_text)
+        response = model.generate_content(prompt)
+        return json.loads(response.text)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ファイルからのタスク抽出失敗: {str(e)}")
+
+# --- DB保存用エンドポイント（依存関係がある前提） ---
+@app.post("/tasks/save", response_model=List[TaskItem])
+async def save_tasks_to_db(tasks: List[TaskItem], db: db_dependency):
+    saved_tasks = []
+
+    for task in tasks:
+        task_record = Task(
+            title=task.title,
+            description=task.description,
+            deadline=task.deadline,
+            priority=task.priority,
+            assign=task.assign,
+            status=task.status or "not-started-yet",
+        )
+        db.add(task_record)
+        saved_tasks.append(task)
+
+    db.commit()
+    return saved_tasks
