@@ -430,14 +430,14 @@ async def get_all_member(db: db_dependency, group_id:int=Path(gt=0)):
 async def get_task_detail(request: Request, db: db_dependency, task_id: int=Path(gt=0)):
     user=get_current_user(request)
     #このタスクはあるのか
-    task_model=db.query(Task).filter(Task.id==task_id).first()
+    task_model = db.query(Task).options(joinedload(Task.assigned_user)).filter(Task.id == task_id).first()
+    # task_model=db.query(Task).filter(Task.id==task_id).first()
     if not task_model:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
     #このユーザーはこのタスクのグループメンバーかどうか
-    middle_model=db.query(Middle).filter(Middle.group_id==task_model.group_id).filter(Middle.user_id==user["id"])
+    middle_model=db.query(Middle).filter(Middle.group_id==task_model.group_id).filter(Middle.user_id==user["id"]).first()
     if not middle_model:
         raise HTTPException(status_code=403, detail="このタスクのグループに所属していないため取得できませんでした")
-    task_model=db.query(Task).filter(Task.id==task_id).first()
     return task_model
 
 
