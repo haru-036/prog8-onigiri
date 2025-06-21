@@ -60,7 +60,7 @@ oauth.register(
 
 db_dependency=Annotated[Session, Depends(get_db)]
 
-
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")  # フロントエンドのURLを環境変数から取得
 
 priority_List=["high","middle","low"]
 status_List=["not-started-yet","in-progress","done"]
@@ -290,9 +290,9 @@ async def auth(request: Request, db: db_dependency):
                     invitation.is_accepted = True
                     db.commit() # .query() で取得した既存オブジェクトなので、もうセッションに「いる」＝ addしなくていい
                     # 完了後にグループ一覧画面(招待されたグループだけしかないけど)にリダイレクト
-                    return {"message" : "Move your task screen."} 
+                    return RedirectResponse(url=frontend_url + "/groups")
     # グループに入ってないし、招待された人でもない -> 「新しくグループを作るオーナーだ」
-    return {"message": "Move new group making screen"}
+    return RedirectResponse(url=frontend_url + "/groups") # グループ一覧画面にリダイレクト
 
 
 # グループ作成
