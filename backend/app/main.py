@@ -400,6 +400,12 @@ async def get_all_member(db: db_dependency, group_id:int=Path(gt=0)):
     return user_model
 
 
+# カレントユーザー情報の取得
+@app.get("/me")
+async def get_current_user_information(request: Request):
+    user=get_current_user(request)
+    return user
+
 # ログアウトする
 @app.get("/logout")
 async def logout(request: Request):
