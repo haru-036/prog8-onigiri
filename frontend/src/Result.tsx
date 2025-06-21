@@ -7,22 +7,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./components/ui/select";
+import Statistics from "./Statistics";
+
 function Result() {
   return (
     <div className="grow w-full bg-neutral-50">
-      <div className="flex-1 flex gap-6 mx-auto max-w-7xl xl:container">
+      <div className="flex-1 flex gap-6 mx-auto max-w-7xl xl:container shrink-0 ">
         <div className="w-full">
-          <div className="flex items-center p-1 gap-1 justify-between px-8">
+          <div className="flex items-center p-1 gap-1 justify-between pl-8">
             <div className="items-start">
-              <h2 className="font-bold text-xl pt-6">抽出結果</h2>
-              <div className="justify-start text-muted-foreground">
+              <h2 className="font-bold text-2xl pt-6">抽出結果</h2>
+              <div className="justify-start text-muted-foreground text-sm">
                 8個のタスクが見つかりました
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Select>
                 <SelectTrigger className="w-[180px]">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-xs">
                     <Flag />
                     <SelectValue placeholder="優先度" />
                   </div>
@@ -36,7 +38,7 @@ function Result() {
 
               <Select>
                 <SelectTrigger className="w-[180px]">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-xs">
                     <Users />
                     <SelectValue placeholder="担当者" />
                   </div>
@@ -47,13 +49,14 @@ function Result() {
                   <SelectItem value="three">ユーザー３</SelectItem>
                 </SelectContent>
               </Select>
-              <Button>
+              <Button className="text-sm">
                 <Plus />
                 追加
               </Button>
             </div>
           </div>
         </div>
+        <Statistics />
       </div>
     </div>
   );
