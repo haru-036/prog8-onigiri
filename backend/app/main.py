@@ -75,7 +75,7 @@ status_List=["not-started-yet","in-progress","done"]
 # BaseModelを継承したクラスとしてデータモデルを宣言
 class TodoRequest(BaseModel):
     title: str=Field(min_length=3, max_length=100)
-    description: str=Field(min_length=3, max_length=100)
+    description: str=Field(min_length=1)
     deadline: datetime
     priority: str
     assign: int=Field(gt=0)
@@ -109,14 +109,14 @@ class TodoRequest(BaseModel):
     }
 
 class CommentRequest(BaseModel):
-    contents: str=Field(min_length=3, max_length=100)
+    contents: str=Field(min_length=1, max_length=100)
 
 class InviteRequest(BaseModel):
     email: EmailStr
 
 
 class GroupNameRequest(BaseModel):
-    name: str=Field(min_length=3)
+    name: str=Field(min_length=1)
 
 class MembersResponse(BaseModel):
     id: int
@@ -157,8 +157,8 @@ class CommentResponse(BaseModel):
         from_attributes = True
 
 class UpdateTaskRequest(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=3, max_length=100)
-    description: Optional[str] = Field(default=None, min_length=3)
+    title: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, min_length=1)
     deadline: Optional[datetime] = None
     status: Optional[Literal["not-started-yet", "in-progress", "done"]] = None
     priority: Optional[Literal["high", "middle", "low"]] = None
@@ -507,8 +507,110 @@ async def get_task_detail(request: Request, db: db_dependency, task_id: int=Path
         raise HTTPException(status_code=403, detail="このタスクのグループに所属していないため取得できませんでした")
     return task_model
 
+#タスク削除(認可：リーダーとアサインされてるメンバーだけ)
+@app.delete("/tasks/{task_id}")
+async def delete_task(request: Request, db: db_dependency,task_id: int=Path(gt=0)):
+    task_model=db.query(Task).filter(Task.id==task_id).first()
+    if not task_model:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    user=get_current_user(request)
+    #ユーザーがこのタスクのグループのメンバーか
+    middle_model=db.query(Middle).filter(Middle.group_id==task_model.group_id).filter(Middle.user_id==user["id"]).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このタスクのグループに所属していないので削除できません")
+    if middle_model.role=="owner" or task_model.assign==user["id"]:
+        db.delete(task_model)
+        db.commit()
+        return {"message":"タスクを削除しました"}
+    else:
+        raise HTTPException(status_code=403, detail="このタスクを削除する権限がありません")
+
+#グループ削除
+@app.delete("/group/{group_id}")
+async def delete_group(request: Request, db: db_dependency, group_id: int=Path(gt=0)):
+    group_model=db.query(Group).filter(Group.id==group_id).first()
+    if not group_model:
+        raise HTTPException(status_code=404, detail="グループが見つかりません")
+    user=get_current_user(request)
+    #ユーザーがこのタスクに所属しているか
+    middle_model=db.query(Middle).filter(Middle.group_id==group_id).filter(Middle.user_id==user["id"]).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このタスクのグループに所属していないので削除できません")
+    #オーナーかどうか
+    if middle_model.role!="owner":
+        raise HTTPException(status_code=403, detail="このグループのオーナーではないので削除できません")
+    db.delete(group_model)
+
+    #削除したグループの中間テーブルを全部削除
+    middle_delete_model=db.query(Middle).filter(Middle.group_id==group_id).all()
+    for m in middle_delete_model:
+        db.delete(m)
+
+    #削除したグループのタスクを全部削除したい
+    task_delete_model=db.query(Task).filter(Task.group_id==group_id).all()
+    #削除するタスクに含まれるコメントも全部削除したいので削除したい全タスクのidを取得
+    task_ids = [t.id for t in task_delete_model]
+    comment_delete_model=db.query(Comment).filter(Comment.task_id.in_(task_ids)).all()
+    #コメント削除
+    for c in comment_delete_model:
+        db.delete(c)
+    #タスクも削除
+    for t in task_delete_model:
+        db.delete(t)
+    db.commit()
+    
+    return {"message":"グループを削除しました"}
 
 
+# メンバー削除
+@app.delete("/groups/{group_id}/members/{member_id}")
+async def delete_member(request: Request, db: db_dependency, group_id: int=Path(gt=0), member_id: int = Path(gt=0)):
+    #グループが存在するか
+    group_model=db.query(Group).filter(Group.id==group_id).first()
+    if not group_model:
+        raise HTTPException(status_code=404, detail="グループが見つかりません")
+    #ユーザーが存在するか
+    user_model=db.query(User).filter(User.id==member_id).first()
+    if not user_model:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    
+    user=get_current_user(request)
+    
+    #クライアントがこのグループに所属しているか
+    middle_client_model=db.query(Middle).filter(Middle.group_id==group_id).filter(Middle.user_id==user["id"]).first()
+    if not middle_client_model:
+        raise HTTPException(status_code=403, detail="このタスクのグループに所属していないので削除できません")
+    #オーナーかどうか
+    if middle_client_model.role!="owner":
+        raise HTTPException(status_code=403, detail="このグループのオーナーではないので削除できません")
+    
+    #削除しようとしているユーザーがこのグループに所属しているか
+    middle_model=db.query(Middle).filter(Middle.group_id==group_id).filter(Middle.user_id==member_id).first()
+    if not middle_model:
+        raise HTTPException(status_code=404, detail="削除しようとしているユーザーはこのグループに所属していません")
+    
+    #オーナー自身の削除を防止
+    if member_id==user["id"]:
+        raise HTTPException(status_code=400, detail="あなたはオーナーなのでこのグループから削除することはできません")
+
+    #メンバーを外す(中間テーブル)
+    db.delete(middle_model)
+
+    #このユーザーがこのグループで持ってたタスクも消す
+    task_model=db.query(Task).filter(Task.group_id==group_id).filter(Task.assign==member_id).all()
+
+    #コメントを消すタスクについてるコメントを先に消す
+    for t in task_model:
+        comment_models=db.query(Comment).filter(Comment.task_id==t.id).all()
+        for c in comment_models:
+            db.delete(c)
+        db.delete(t)
+
+    db.commit()
+    return {"message": "メンバーをこのグループから削除しました"}
+
+    
+    
 # カレントユーザー情報の取得
 @app.get("/me", response_model=UserInformationResponse)
 async def get_current_user_information(request: Request):
