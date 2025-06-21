@@ -151,21 +151,36 @@ class CommentResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class UpdateTaskRequest(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=3, max_length=100)
+    description: Optional[str] = Field(default=None, min_length=3)
+    deadline: Optional[datetime] = None
+    status: Optional[Literal["not-started-yet", "in-progress", "done"]] = None
+    priority: Optional[Literal["high", "middle", "low"]] = None
+    assign: Optional[int] = Field(default=None, gt=0)
+
+
 #招待メール送信関数
-def send_invite_email(receiver_email: str, group_id: int, invite_link: str):
+def send_invite_email(receiver_email: str, group_name: str, invite_link: str):
     # Gmailの送信者情報
     sender_email = "341117lisamilet@gmail.com"
     app_password = os.getenv("APP_PASSWORD")  # アプリパスワード
 
     # メールの内容
-    subject = f"{group_id}への招待"
+    subject = f"【MeeTask】{group_name}グループに招待されています"
     body = f"""
-    あなたは{group_id}に招待されました！
+    タスク管理アプリMeeTaskで、
+    あなたは【{group_name}】に招待されました！
 
-    下のリンクから参加してください：
+    下のリンクをクリックしてグループに参加してください：
     {invite_link}
 
-    ご利用ありがとうございます！
+    ※このメールは MeeTask のグループ管理機能を通じて自動送信されています。
+    ご不明な点がある場合は、招待者にご確認ください。
+    ___
+
+    【MeeTask】
+    https://MeeTask-app.example.com
     """
 
     # MIME構造の作成
@@ -280,7 +295,7 @@ async def auth(request: Request, db: db_dependency):
     request.session["user"]={
         "id": existing_user.id,
         "sub": existing_user.sub,
-        "name": existing_user.user_name,
+        "user_name": existing_user.user_name,
         "picture": existing_user.picture
     }
 
@@ -404,6 +419,33 @@ async def get_comments(request: Request, db: db_dependency, task_id: int=Path(gt
     comment_model=db.query(Comment).options(joinedload(Comment.commenter)).filter(Comment.task_id==task_id).all()
     return comment_model
 
+# タスク更新
+@app.put("/tasks/{task_id}")
+async def update_tasks(update_task_request: UpdateTaskRequest, request:Request, db: db_dependency, task_id: int=Path(gt=0)):
+    user=get_current_user(request)
+    task_model=db.query(Task).filter(Task.id==task_id).first()
+    if not task_model:
+        raise HTTPException(status_code=404, detail="このタスクは存在しません")
+    #ユーザーがこのグループのメンバーか
+    middle_model=db.query(Middle).filter(Middle.group_id==task_model.group_id).filter(Middle.user_id==user["id"]).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このグループに所属していないため更新できません")
+    if update_task_request.title is not None:
+        task_model.title = update_task_request.title
+    if update_task_request.description is not None:
+        task_model.description = update_task_request.description
+    if update_task_request.deadline is not None:
+        task_model.deadline = update_task_request.deadline
+    if update_task_request.status is not None:
+        task_model.status = update_task_request.status
+    if update_task_request.priority is not None:
+        task_model.priority = update_task_request.priority
+    if update_task_request.assign is not None:
+        task_model.assign = update_task_request.assign
+
+    db.commit()
+    db.refresh(task_model)
+    return {"messege":"更新しました"}
 
 # 自分のグループのタスク一覧取得
 @app.get("/groups/{group_id}/tasks",response_model=List[TaskResponse])
@@ -488,7 +530,9 @@ async def invite_user(group_id: int, db: db_dependency, request: Request, invite
     db.add(invitation_model)
     db.commit()
     invite_link = f"http://localhost:8000/join?token={token}"  # トークンは本来ランダム生成
-    send_invite_email(invite_request.email, group_id, invite_link)
+    group_model=db.query(Group).filter(Group.id==group_id).first()
+    group_name=group_model.name
+    send_invite_email(invite_request.email, group_name, invite_link)
     return {"message": "招待メールを送信しました"}
 
 

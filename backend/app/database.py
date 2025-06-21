@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 engine = create_engine(os.getenv("DATABASE_URL"), echo=True)
+# echo=True は、SQLAlchemy に 実行されるすべての SQL 文をログとして表示させるためのオプション
 
 SessionLocal = sessionmaker(
     bind=engine, 
