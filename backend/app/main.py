@@ -109,18 +109,6 @@ class CommentRequest(BaseModel):
 class InviteRequest(BaseModel):
     email: EmailStr
 
-# class TaskResponse(BaseModel):
-#     id: int
-#     title : str
-#     description :str
-#     deadline :datetime
-#     priority :str
-#     assign : int
-#     status : str
-#     group_id : int
-
-#     class Config:
-#         orm_mode = True
 
 class GroupNameRequest(BaseModel):
     name: str=Field(min_length=3)
@@ -150,6 +138,15 @@ class TaskResponse(BaseModel):
     assigned_user: UserInformationResponse
     status: str
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CommentResponse(BaseModel):
+    id: int
+    contents: str
+    created_at: datetime
+    commenter: UserInformationResponse
 
     class Config:
         from_attributes = True
@@ -392,6 +389,21 @@ async def post_comment(task_id:int, comment_request: CommentRequest,request: Req
     db.add(comment_model)
     db.commit()
     return {"message":"コメントを投稿しました"}
+
+# コメント取得
+@app.get("/tasks/{task_id}/comments", response_model=List[CommentResponse])
+async def get_comments(request: Request, db: db_dependency, task_id: int=Path(gt=0)):
+    user=get_current_user(request)
+    task=db.query(Task).filter(Task.id==task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="タスクが存在しません")
+    # アクセスしているユーザーがこのtaskを作成したグループのメンバーか -> Middleテーブルでuserのidと一致するカラムを絞り込む＆その中からこのタスクを作成したグループのidと一致するものがあるか
+    middle_model=db.query(Middle).filter(Middle.user_id==user["id"]).filter(Middle.group_id==task.group_id).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このグループに所属していないためコメントできません")
+    comment_model=db.query(Comment).options(joinedload(Comment.commenter)).filter(Comment.task_id==task_id).all()
+    return comment_model
+
 
 # 自分のグループのタスク一覧取得
 @app.get("/groups/{group_id}/tasks",response_model=List[TaskResponse])
