@@ -12,7 +12,7 @@ import {
 } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { useParams } from "react-router";
 import { useState } from "react";
@@ -78,6 +78,7 @@ export default function Header() {
   const groupId = urlParams.groupId;
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState<"invite" | "calendar" | null>(null);
+  const [taskOpen, setTaskOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [month, setMonth] = useState<Date>(new Date());
 
@@ -119,6 +120,7 @@ export default function Header() {
   function handleTaskSubmit(values: z.infer<typeof formSchema>) {
     taskMutation.mutate(values);
   }
+  const queryClient = useQueryClient();
 
   const taskMutation = useMutation({
     mutationKey: ["createTask"],
@@ -130,8 +132,14 @@ export default function Header() {
       // タスク追加成功時の処理
       console.log("Task added successfully");
       form.reset(); // フォームをリセット
-      setOpen(null); // ダイアログを閉じる
+      setTaskOpen(false); // ダイアログを閉じる
+      queryClient.refetchQueries({ queryKey: ["tasks", groupId] });
     },
+    onError: (error) => {
+      // エラーハンドリング
+      console.error("Error adding task:", error);
+    },
+    retry: 1,
   });
 
   const handleInviteMember = () => {
@@ -209,7 +217,7 @@ export default function Header() {
                 </DialogContent>
               </Dialog>
 
-              <Dialog>
+              <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus />
