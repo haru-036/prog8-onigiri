@@ -128,6 +128,10 @@ class MembersResponse(BaseModel):
     class Config:
         orm_mode = True
 
+class UserInformationResponse(BaseModel):
+    id: int
+    name: str
+    picture: str
 
 #招待メール送信関数
 def send_invite_email(receiver_email: str, group_id: int, invite_link: str):
@@ -258,7 +262,8 @@ async def auth(request: Request, db: db_dependency):
     request.session["user"]={
         "id": existing_user.id,
         "sub": existing_user.sub,
-        "name": existing_user.user_name
+        "name": existing_user.user_name,
+        "picture": existing_user.picture
     }
 
     # 招待メールから来てる場合招待トークンを持ってる
@@ -406,6 +411,12 @@ async def get_all_member(db: db_dependency, group_id:int=Path(gt=0)):
     user_model=db.query(User).filter(User.id.in_(users)).all()
     return user_model
 
+
+# カレントユーザー情報の取得
+@app.get("/me", response_model=UserInformationResponse)
+async def get_current_user_information(request: Request):
+    user=get_current_user(request)
+    return user
 
 # ログアウトする
 @app.get("/logout")
