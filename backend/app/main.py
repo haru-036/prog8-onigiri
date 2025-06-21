@@ -45,7 +45,7 @@ app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SECRET_KEY"),# クッキー署名に使う秘密鍵
     session_cookie="session",  # クライアントsessionという名前のクッキーを渡すし、参照する
-    https_only=False, # HTTP でもクッキーを送信できるように。本番環境ではTrueにする
+    https_only=True, # HTTP でもクッキーを送信できるように。本番環境ではTrueにする
 )
 # max_ageを指定していないのでsessionクッキーはブラウザをと知ると消える -> ログイン状態はブラウザを開いている限り続く   
 
