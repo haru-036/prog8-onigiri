@@ -1,17 +1,20 @@
 import { Eye } from "lucide-react";
+import { Button } from "./components/ui/button";
 
 function Origin() {
   return (
     <div className=" bg-neutral-50 pr-4 pt-6 w-[300px] shrink-0">
       <div className="bg-white border border-neutral-200 max-w-sm rounded-md ">
-        <div className="text-left p-4">
+        <div className="text-left p-5 space-y-2 ">
           <div className="flex justify-between items-center">
             <div className="pb-2 font-bold text-base">元テキスト</div>
             <div className="text-lg font-bold bg-neutral-50">
-              <Eye />
+              <Button variant="secondary" size="icon" className="size-8">
+                <Eye />
+              </Button>
             </div>
           </div>
-          <div className=" bg-neutral-50 p-2">
+          <div className=" bg-secondary p-4 rounded-md">
             <div className="flex justify-between items-center">
               <div className="justify-start pb-2 text-sm">
                 会議議事録-2025/06/21
