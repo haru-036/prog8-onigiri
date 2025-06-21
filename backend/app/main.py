@@ -445,7 +445,7 @@ async def update_tasks(update_task_request: UpdateTaskRequest, request:Request, 
 
     db.commit()
     db.refresh(task_model)
-    return {"messege":"更新しました"}
+    return {"message":"更新しました"}
 
 # 自分のグループのタスク一覧取得
 @app.get("/groups/{group_id}/tasks",response_model=List[TaskResponse])
@@ -521,16 +521,18 @@ async def logout(request: Request):
 # 招待エンドポイント
 @app.post("/groups/{group_id}/invite")
 async def invite_user(group_id: int, db: db_dependency, request: Request, invite_request: InviteRequest):
+    group_model=db.query(Group).filter(Group.id==group_id).first()
+    if not group_model:
+        raise HTTPException(status_code=404, detail="グループが見つかりません")
+    #招待者がオーナーかどうか
     user=get_current_user(request)
     authorize_owner(user["id"],group_id, db)
-    # どのユーザーをどのグループに招待したか
     token = str(uuid.uuid4())  # UUID(University Unique identifier)=ランダムな一意識別子を生成する関数
-    # 保存
+    # invitationテーブルに保存
     invitation_model = Invitation(**invite_request.model_dump(), group_id=group_id, token=token)
     db.add(invitation_model)
     db.commit()
     invite_link = f"http://localhost:8000/join?token={token}"  # トークンは本来ランダム生成
-    group_model=db.query(Group).filter(Group.id==group_id).first()
     group_name=group_model.name
     send_invite_email(invite_request.email, group_name, invite_link)
     return {"message": "招待メールを送信しました"}
