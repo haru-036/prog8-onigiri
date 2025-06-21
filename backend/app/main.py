@@ -119,6 +119,10 @@ class MembersResponse(BaseModel):
     class Config:
         orm_mode = True
 
+class UserInformationResponse(BaseModel):
+    id: int
+    name: str
+    picture: str
 
 #招待メール送信関数
 def send_invite_email(receiver_email: str, group_id: int, invite_link: str):
@@ -401,7 +405,7 @@ async def get_all_member(db: db_dependency, group_id:int=Path(gt=0)):
 
 
 # カレントユーザー情報の取得
-@app.get("/me")
+@app.get("/me", response_model=UserInformationResponse)
 async def get_current_user_information(request: Request):
     user=get_current_user(request)
     return user
