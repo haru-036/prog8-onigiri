@@ -9,7 +9,6 @@ import TaskDetail from "./TaskDetail.tsx";
 import Layout from "./components/layout.tsx";
 import Result from "./Result.tsx";
 import Extraction from "./Extraction.tsx";
-import Statistics from "./Statistics.tsx";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
@@ -22,7 +21,6 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/group/:taskId" element={<TaskDetail />} />
           <Route path="/extraction" element={<Extraction />} />
           <Route path="/result" element={<Result />} />
-          <Route path="/statistics" element={<Statistics />} />
         </Route>
       </Routes>
     </BrowserRouter>
