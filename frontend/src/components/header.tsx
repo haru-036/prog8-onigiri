@@ -459,7 +459,7 @@ export default function Header() {
 
           <Avatar className="size-9">
             <AvatarImage src={me?.picture} />
-            <AvatarFallback>{me?.name}</AvatarFallback>
+            <AvatarFallback>{me?.user_name}</AvatarFallback>
           </Avatar>
         </div>
       </div>
