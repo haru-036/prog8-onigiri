@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy.orm import relationship
 from .database import Base
 from datetime import datetime, timezone
 
@@ -10,6 +11,9 @@ class User(Base):
     email = Column(String)
     picture = Column(String)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    # relationshipはSQLAlchemyで２つのテーブルがどう繋がっているかを表現する仕組み ->　オブジェクトとしてアクセスできるようになる
+    # テーブルAの中にForeignKeyがあるだけでは「IDでつながってる」としかわからない
+    assigned_tasks = relationship("Task", back_populates="assigned_user")
 
 class Group(Base):
     __tablename__ = "groups"
@@ -28,6 +32,8 @@ class Task(Base):
     status = Column(String)
     group_id = Column(Integer, ForeignKey("groups.id"))
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    # back_populates="assigned_tasks" -> これは 2つのテーブルが "双方向に" 関係していることを示す
+    assigned_user = relationship("User", back_populates="assigned_tasks", foreign_keys=[assign])  
 
 class Comment(Base):
     __tablename__="comments"
