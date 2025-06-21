@@ -16,7 +16,7 @@ import uuid
 from pydantic import BaseModel, Field, field_validator, EmailStr
 from datetime import datetime
 from sqlalchemy.orm import joinedload
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 load_dotenv()
@@ -25,6 +25,15 @@ load_dotenv()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# CORSミドルウェアの設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # どのオリジンからのリクエストも許可
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # SessionMiddleware(=セッションのやり取りの管理窓口)の設定
 app.add_middleware(
@@ -305,7 +314,6 @@ async def auth(request: Request, db: db_dependency):
                     return {"message" : "Move your task screen."} 
     # グループに入ってないし、招待された人でもない -> 「新しくグループを作るオーナーだ」
     return {"message": "Move new group making screen"}
-
 
 
 # グループ作成
