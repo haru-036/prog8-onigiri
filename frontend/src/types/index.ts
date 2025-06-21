@@ -1,12 +1,11 @@
 export type Task = {
-  id: string;
-  name: string;
+  id: number;
+  title: string;
   description: string;
   deadline: Date | string; // ISO date string or Date object
   priority: "low" | "middle" | "high";
-  assign: string; // User ID or name
-  groupId?: string; // Group ID
-  status: "not-stated-yet" | "in-progress" | "done";
+  assign?: number; // User ID or name
+  group_id?: number; // Group ID
+  status: "not-started-yet" | "in-progress" | "done";
   createdAt?: Date | string;
-  updatedAt?: Date | string;
 };

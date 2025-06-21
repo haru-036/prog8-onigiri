@@ -25,10 +25,32 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
 import { tasks } from "./mock/data";
 import type { Task } from "./types";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 import { PriorityBadge } from "./components/priorityBadge";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "./lib/axios";
 
 export default function Group() {
+  const urlParams = useParams<{ groupId: string }>();
+  const groupId = urlParams.groupId;
+  const { data, isPending } = useQuery({
+    queryKey: ["tasks", groupId],
+    queryFn: async (): Promise<Task[]> => {
+      // ここでAPIからタスクを取得する処理を実装
+      const res = await api.get(`/groups/${groupId}/tasks`);
+      return res.data;
+    },
+  });
+  console.log("Group tasks:", data);
+
+  if (isPending) {
+    return (
+      <div className="grow flex items-center justify-center">
+        <p className="text-muted-foreground">タスクを読み込み中...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grow w-full bg-neutral-50 p-6 flex gap-6">
       <div className="flex-1 flex gap-6 mx-auto max-w-7xl xl:container">
@@ -71,12 +93,13 @@ export default function Group() {
                   未着手
                 </div>
                 <div className="text-muted-foreground">
-                  {tasks.filter((t) => t.status === "not-stated-yet").length}
+                  {data?.filter((t) => t.status === "not-started-yet").length}
                 </div>
               </div>
+
               <div className="py-3 grid grid-cols-1 gap-3">
-                {tasks
-                  .filter((t) => t.status === "not-stated-yet")
+                {data
+                  ?.filter((t) => t.status === "not-started-yet")
                   .map((task) => (
                     <TaskCard key={task.id} task={task} />
                   ))}
@@ -89,12 +112,12 @@ export default function Group() {
                   進行中
                 </div>
                 <div className="text-muted-foreground">
-                  {tasks.filter((t) => t.status === "in-progress").length}
+                  {data?.filter((t) => t.status === "in-progress").length}
                 </div>
               </div>
               <div className="py-3 grid grid-cols-1 gap-3">
-                {tasks
-                  .filter((t) => t.status === "in-progress")
+                {data
+                  ?.filter((t) => t.status === "in-progress")
                   .map((task) => (
                     <TaskCard key={task.id} task={task} />
                   ))}
@@ -107,12 +130,12 @@ export default function Group() {
                   完了
                 </div>
                 <div className="text-muted-foreground">
-                  {tasks.filter((t) => t.status === "done").length}
+                  {data?.filter((t) => t.status === "done").length}
                 </div>
               </div>
               <div className="py-3 grid grid-cols-1 gap-3 opacity-50">
-                {tasks
-                  .filter((t) => t.status === "done")
+                {data
+                  ?.filter((t) => t.status === "done")
                   .map((task) => (
                     <TaskCard key={task.id} task={task} />
                   ))}
@@ -127,7 +150,7 @@ export default function Group() {
 
 const TaskCard = ({ task }: { task: Task }) => {
   return (
-    <Link to={`/groups/${task.groupId}/${task.id}`}>
+    <Link to={`/groups/${task.group_id}/${task.id}`}>
       <Card
         className={`border-neutral-200 shadow-none gap-3 hover:shadow-md transition-shadow`}
       >
@@ -146,7 +169,7 @@ const TaskCard = ({ task }: { task: Task }) => {
           </div>
         </CardHeader>
         <CardContent>
-          <h4 className="font-bold">{task.name}</h4>
+          <h4 className="font-bold">{task.title}</h4>
         </CardContent>
         <CardFooter>
           <div className="flex items-center gap-1">

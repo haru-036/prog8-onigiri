@@ -8,7 +8,7 @@ function App() {
           ミーティング後、 <br />
           議事録からタスクを自動追加。
         </div>
-        <Button size={"lg"} className="text-base" asChild>
+        <Button size={"lg"} className="text-base py-2" asChild>
           <a href={`${import.meta.env.VITE_API_URL}/login`}>
             Googleアカウントで始める
           </a>

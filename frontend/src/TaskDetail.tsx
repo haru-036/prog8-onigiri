@@ -181,7 +181,7 @@ export default function TaskDetail() {
   );
 }
 
-const StatusBadge = ({
+export const StatusBadge = ({
   status,
 }: {
   status: "not-started-yet" | "in-progress" | "done";
