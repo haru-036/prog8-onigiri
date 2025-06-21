@@ -33,7 +33,7 @@ function NewGroup() {
     mutationKey: ["createGroup"],
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       const response = await api.post("/groups", {
-        group_name: values.groupname,
+        name: values.groupname,
       });
       return response.data;
     },
