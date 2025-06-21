@@ -70,7 +70,7 @@ status_List=["not-started-yet","in-progress","done"]
 # BaseModelを継承したクラスとしてデータモデルを宣言
 class TodoRequest(BaseModel):
     title: str=Field(min_length=3, max_length=100)
-    description: str=Field(min_length=1, max_length=100)
+    description: str=Field(min_length=1)
     deadline: datetime
     priority: str
     assign: int=Field(gt=0)
