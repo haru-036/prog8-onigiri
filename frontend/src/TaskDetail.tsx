@@ -30,17 +30,78 @@ import {
 import { Textarea } from "./components/ui/textarea";
 import { Button } from "./components/ui/button";
 import { Link, useParams } from "react-router";
+import type { Task } from "./types";
+import { api } from "./lib/axios";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useGroupMembers } from "./hooks/useGroupMembers";
 
 export default function TaskDetail() {
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<Date | undefined>(undefined);
   const [editMode, setEditMode] = useState<"title" | "description" | null>(
     null
   );
-  const [title, setTitle] = useState("タスク名タスク名");
-  const [description, setDescription] = useState("タスクの説明タスクの説明");
-  const urlParams = useParams<{ groupId: string }>();
+
+  const [editData, setEditData] = useState<Partial<Task>>({});
+
+  const urlParams = useParams<{ groupId: string; taskId: string }>();
   const groupId = urlParams.groupId;
+  const taskId = urlParams.taskId;
+
+  const queryClient = useQueryClient();
+
+  const { data: members } = useGroupMembers(
+    groupId ? parseInt(groupId) : undefined
+  );
+
+  const { data: task, isPending } = useQuery({
+    queryKey: ["task", groupId, taskId],
+    queryFn: async (): Promise<Task> => {
+      const res = await api.get(`/tasks/${taskId}`);
+      return res.data;
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationKey: ["updateTask", groupId, taskId],
+    mutationFn: async (updatedTask: Partial<Task>) => {
+      const res = await api.put(`/tasks/${taskId}`, updatedTask);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.refetchQueries({ queryKey: ["task", groupId, taskId] });
+      setEditMode(null);
+    },
+    onError: (error) => {
+      console.error("タスクの更新に失敗しました:", error);
+    },
+  });
+
+  const handleSaveChanges = (field: string) => {
+    if (!task) return;
+
+    const value = editData[field as keyof Task] ?? task[field as keyof Task];
+
+    updateTaskMutation.mutate({ [field]: value });
+  };
+
+  const handleInputChange = (field: keyof Task, value: unknown) => {
+    setEditData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const getFieldValue = (field: keyof Task) => {
+    if (editData[field] !== undefined) {
+      return editData[field];
+    }
+    return task ? task[field] : "";
+  };
+
+  if (isPending) {
+    return (
+      <div className="w-full grow bg-neutral-50 flex items-center justify-center">
+        <p className="text-muted-foreground">タスクを読み込み中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full grow bg-neutral-50 flex flex-col">
@@ -60,18 +121,24 @@ export default function TaskDetail() {
             <input
               type="text"
               className="w-full font-semibold py-1 text-2xl border-b border-border focus:outline-none focus:border-primary-500"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={getFieldValue("title")?.toString()}
+              onChange={(e) => handleInputChange("title", e.target.value)}
             />
           ) : (
             <h1 className="w-full font-semibold text-2xl py-1 border-b border-transparent">
-              {title}
+              {task?.title}
             </h1>
           )}
           <Button
             variant={editMode === "title" ? "default" : "secondary"}
             size="icon"
-            onClick={() => setEditMode(editMode === "title" ? null : "title")}
+            onClick={() => {
+              if (editMode === "title") {
+                handleSaveChanges("title");
+              } else {
+                setEditMode("title");
+              }
+            }}
           >
             {editMode === "title" ? <Check /> : <Edit />}
           </Button>
@@ -87,7 +154,49 @@ export default function TaskDetail() {
                   </div>
                 </TableCell>
                 <TableCell className="hover:bg-muted/50 p-0">
-                  <SelectCell type="user" />
+                  <Select
+                    value={
+                      task?.assigned_user?.id
+                        ? task.assigned_user.id.toString()
+                        : undefined
+                    }
+                    onValueChange={(value) => {
+                      const memberId = parseInt(value, 10);
+                      handleInputChange("assign", memberId);
+                      updateTaskMutation.mutate({
+                        assign: memberId,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-full border-none shadow-none hover:shadow-none focus:shadow-none focus-visible:border-none">
+                      <SelectValue placeholder="選択してください" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {members?.map((member) => (
+                        <SelectItem
+                          key={member.id}
+                          value={member.id.toString()}
+                        >
+                          <div className="flex items-center gap-1">
+                            <Avatar className="size-5">
+                              <AvatarImage
+                                src={
+                                  member.picture ||
+                                  `https://api.dicebear.com/9.x/glass/svg?seed=${member.user_name}`
+                                }
+                              />
+                              <AvatarFallback>
+                                {member.user_name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">
+                              {member.user_name}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </TableCell>
               </TableRow>
               <TableRow>
@@ -103,7 +212,9 @@ export default function TaskDetail() {
                       className="w-full text-start h-9 block px-3 font-semibold"
                       id="date"
                     >
-                      {date ? date.toLocaleDateString() : "Select date"}
+                      {task
+                        ? new Date(task.deadline).toLocaleDateString()
+                        : "Select date"}
                     </PopoverTrigger>
                     <PopoverContent
                       className="w-auto overflow-hidden p-0"
@@ -111,10 +222,17 @@ export default function TaskDetail() {
                     >
                       <Calendar
                         mode="single"
-                        selected={date}
+                        selected={task ? new Date(task.deadline) : undefined}
                         captionLayout="dropdown"
                         onSelect={(date) => {
-                          setDate(date);
+                          if (date) {
+                            // Adjust for timezone to ensure the selected date is preserved
+                            const adjustedDate = new Date(date);
+                            adjustedDate.setHours(23, 59, 59, 999);
+                            updateTaskMutation.mutate({
+                              deadline: adjustedDate.toISOString(),
+                            });
+                          }
                           setOpen(false);
                         }}
                       />
@@ -130,7 +248,19 @@ export default function TaskDetail() {
                   </div>
                 </TableCell>
                 <TableCell className="hover:bg-muted/50 p-0">
-                  <SelectCell type="status" />
+                  <SelectCell
+                    type="status"
+                    value={getFieldValue("status")?.toString()}
+                    onChange={(value) => {
+                      handleInputChange("status", value);
+                      updateTaskMutation.mutate({
+                        status: value as
+                          | "not-started-yet"
+                          | "in-progress"
+                          | "done",
+                      });
+                    }}
+                  />
                 </TableCell>
               </TableRow>
               <TableRow>
@@ -141,7 +271,16 @@ export default function TaskDetail() {
                   </div>
                 </TableCell>
                 <TableCell className="hover:bg-muted/50 p-0">
-                  <SelectCell type="priority" />
+                  <SelectCell
+                    type="priority"
+                    value={getFieldValue("priority")?.toString()}
+                    onChange={(value) => {
+                      handleInputChange("priority", value);
+                      updateTaskMutation.mutate({
+                        priority: value as "high" | "middle" | "low",
+                      });
+                    }}
+                  />
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -154,20 +293,26 @@ export default function TaskDetail() {
             {editMode === "description" ? (
               <textarea
                 className="w-full p-3 rounded-md border-input border text-base resize-none leading-relaxed break-words field-sizing-content"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={getFieldValue("description")?.toString()}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
               />
             ) : (
               <p className="p-3 w-full border border-transparent text-base leading-relaxed break-words">
-                {description}
+                {task?.description || "タスクの説明がここに入ります。"}
               </p>
             )}
             <Button
               variant={editMode === "description" ? "default" : "secondary"}
               size="icon"
-              onClick={() =>
-                setEditMode(editMode === "description" ? null : "description")
-              }
+              onClick={() => {
+                if (editMode === "description") {
+                  handleSaveChanges("description");
+                } else {
+                  setEditMode("description");
+                }
+              }}
             >
               {editMode === "description" ? <Check /> : <Edit />}
             </Button>
@@ -207,7 +352,17 @@ export const StatusBadge = ({
   );
 };
 
-const SelectCell = ({ type }: { type: "status" | "priority" | "user" }) => {
+const SelectCell = ({
+  type,
+  value,
+  onChange,
+}: {
+  type: "status" | "priority" | "user";
+  value?: string | { id: number; user_name: string; picture: string };
+  onChange?: (
+    value: string | { id: number; user_name: string; picture: string }
+  ) => void;
+}) => {
   const options = {
     status: [
       { value: "not-started-yet", label: "未着手" },
@@ -227,7 +382,10 @@ const SelectCell = ({ type }: { type: "status" | "priority" | "user" }) => {
   };
 
   return (
-    <Select>
+    <Select
+      value={typeof value === "string" ? value : value?.id?.toString()}
+      onValueChange={onChange}
+    >
       <SelectTrigger className="w-full border-none shadow-none hover:shadow-none focus:shadow-none focus-visible:border-none">
         <SelectValue placeholder="選択してください" />
       </SelectTrigger>

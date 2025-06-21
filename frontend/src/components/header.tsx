@@ -39,6 +39,7 @@ import {
 } from "./ui/select";
 import { StatusBadge } from "@/TaskDetail";
 import { PriorityBadge } from "./priorityBadge";
+import { useGroupMembers } from "@/hooks/useGroupMembers";
 
 const formSchema = z.object({
   title: z
@@ -94,19 +95,9 @@ export default function Header() {
     },
   });
 
-  const { data: members, isPending } = useQuery<
-    { id: number; user_name: string; picture: string }[]
-  >({
-    queryKey: ["members", groupId],
-    queryFn: async () => {
-      if (!groupId) {
-        return [];
-      }
-      const res = await api.get(`/groups/${groupId}/members`);
-      return res.data;
-    },
-    retry: 1,
-  });
+  const { data: members, isPending } = useGroupMembers(
+    groupId ? Number(groupId) : undefined
+  );
 
   const { data: me } = useQuery({
     queryKey: ["me"],
