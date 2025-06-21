@@ -249,7 +249,8 @@ async def auth(request: Request, db: db_dependency):
     request.session["user"]={
         "id": existing_user.id,
         "sub": existing_user.sub,
-        "name": existing_user.user_name
+        "name": existing_user.user_name,
+        "picture": existing_user.picture
     }
 
     # 招待メールから来てる場合招待トークンを持ってる
