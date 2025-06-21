@@ -1,12 +1,10 @@
 import {
-  ArrowUp,
   CalendarIcon,
   Check,
   CheckCircle,
   ChevronLeft,
   Edit,
   Flag,
-  MessagesSquare,
   User,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
@@ -27,13 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "./components/ui/textarea";
 import { Button } from "./components/ui/button";
 import { Link, useParams } from "react-router";
 import type { Task } from "./types";
 import { api } from "./lib/axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGroupMembers } from "./hooks/useGroupMembers";
+import { CommentList } from "./components/comments";
 
 export default function TaskDetail() {
   const [open, setOpen] = useState(false);
@@ -318,7 +316,7 @@ export default function TaskDetail() {
             </Button>
           </div>
           <div className="w-full lg:col-span-3">
-            <CommentList />
+            <CommentList taskId={taskId!} />
           </div>
         </div>
       </div>
@@ -417,72 +415,5 @@ const SelectCell = ({
         ))}
       </SelectContent>
     </Select>
-  );
-};
-
-const CommentList = () => {
-  return (
-    <div className="w-full px-4 border border-border rounded-lg py-4 bg-white">
-      <h2 className="pb-1.5 flex items-center gap-2 font-semibold">
-        <MessagesSquare size={16} />
-        コメント
-      </h2>
-      <div className="divide-border divide-y">
-        <CommentItem
-          user="ユーザー1"
-          date="2023/10/01 12:00"
-          content="このタスクについてのコメント内容がここに入ります。"
-        />
-        <CommentItem
-          user="ユーザー2"
-          date="2023/10/01 12:00"
-          content="このタスクについてのコメント内容がここに入ります。"
-        />
-        <CommentItem
-          user="ユーザー3"
-          date="2023/10/01 12:00"
-          content="このタスクについてのコメント内容がここに入ります。"
-        />
-      </div>
-
-      <div className="flex items-start gap-2 pt-3">
-        <Textarea
-          placeholder="コメントを追加..."
-          className="bg-white min-h-full resize-none"
-        />
-        <Button size={"icon"}>
-          <ArrowUp />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const CommentItem = ({
-  user,
-  date,
-  content,
-}: {
-  user: string;
-  date: string;
-  content: string;
-}) => {
-  return (
-    <div className="py-3 flex items-start gap-2 px-1">
-      <Avatar className="size-7">
-        <AvatarImage
-          src={`https://api.dicebear.com/9.x/glass/svg?seed=${user}`}
-        />
-        <AvatarFallback>{user}</AvatarFallback>
-      </Avatar>
-
-      <div className="space-y-1">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold">{user}</span>
-          <p className="text-sm text-muted-foreground">{date}</p>
-        </div>
-        <p className="text-base whitespace-pre-wrap break-words">{content}</p>
-      </div>
-    </div>
   );
 };
