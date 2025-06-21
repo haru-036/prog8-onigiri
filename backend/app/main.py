@@ -15,6 +15,8 @@ from email.mime.multipart import MIMEMultipart
 import uuid
 from pydantic import BaseModel, Field, field_validator, EmailStr
 from datetime import datetime
+from sqlalchemy.orm import joinedload
+
 
 
 load_dotenv()
@@ -98,15 +100,18 @@ class CommentRequest(BaseModel):
 class InviteRequest(BaseModel):
     email: EmailStr
 
-class TaskResponse(BaseModel):
-    id: int
-    title : str
-    description :str
-    deadline :datetime
-    priority :str
-    assign : int
-    status : str
-    group_id : int
+# class TaskResponse(BaseModel):
+#     id: int
+#     title : str
+#     description :str
+#     deadline :datetime
+#     priority :str
+#     assign : int
+#     status : str
+#     group_id : int
+
+#     class Config:
+#         orm_mode = True
 
 class GroupNameRequest(BaseModel):
     name: str=Field(min_length=3)
@@ -117,12 +122,28 @@ class MembersResponse(BaseModel):
     picture: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserInformationResponse(BaseModel):
     id: int
-    name: str
+    user_name: str
     picture: str
+
+    class Config:
+        from_attributes = True
+
+class TaskResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    deadline: datetime
+    priority: str
+    assigned_user: UserInformationResponse
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 #招待メール送信関数
 def send_invite_email(receiver_email: str, group_id: int, invite_link: str):
@@ -379,7 +400,8 @@ async def get_all_tasks(
     middle_model=db.query(Middle).filter(Middle.user_id==user["id"]).filter(Middle.group_id==group_id).first()
     if not middle_model:
         raise HTTPException(status_code=403, detail="このグループに所属していないのでタスクを取得できませんでした")
-    query=db.query(Task).filter(Task.group_id==group_id)
+    # query=db.query(Task).filter(Task.group_id==group_id)
+    query = db.query(Task).options(joinedload(Task.assigned_user)).filter(Task.group_id == group_id)
     #statusで絞り込む
     if status:
         query=query.filter(Task.status==status)
@@ -403,12 +425,29 @@ async def get_all_member(db: db_dependency, group_id:int=Path(gt=0)):
     user_model=db.query(User).filter(User.id.in_(users)).all()
     return user_model
 
+# タスク詳細取得
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task_detail(request: Request, db: db_dependency, task_id: int=Path(gt=0)):
+    user=get_current_user(request)
+    #このタスクはあるのか
+    task_model=db.query(Task).filter(Task.id==task_id).first()
+    if not task_model:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    #このユーザーはこのタスクのグループメンバーかどうか
+    middle_model=db.query(Middle).filter(Middle.group_id==task_model.group_id).filter(Middle.user_id==user["id"])
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="このタスクのグループに所属していないため取得できませんでした")
+    task_model=db.query(Task).filter(Task.id==task_id).first()
+    return task_model
+
+
 
 # カレントユーザー情報の取得
 @app.get("/me", response_model=UserInformationResponse)
 async def get_current_user_information(request: Request):
     user=get_current_user(request)
     return user
+
 
 # ログアウトする
 @app.get("/logout")
