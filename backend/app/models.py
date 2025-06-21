@@ -14,6 +14,7 @@ class User(Base):
     # relationshipはSQLAlchemyで２つのテーブルがどう繋がっているかを表現する仕組み ->　オブジェクトとしてアクセスできるようになる
     # テーブルAの中にForeignKeyがあるだけでは「IDでつながってる」としかわからない
     assigned_tasks = relationship("Task", back_populates="assigned_user")
+    comments = relationship("Comment", back_populates="commenter")
 
 class Group(Base):
     __tablename__ = "groups"
@@ -42,6 +43,8 @@ class Comment(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     contents = Column(String)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+    commenter = relationship("User", back_populates="comments", foreign_keys=[user_id])  
 
 class Invitation(Base):
     __tablename__ = "invitations"
