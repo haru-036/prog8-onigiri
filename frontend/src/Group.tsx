@@ -101,7 +101,11 @@ export default function Group() {
                 {data
                   ?.filter((t) => t.status === "not-started-yet")
                   .map((task) => (
-                    <TaskCard key={task.id} task={task} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      groupId={Number(groupId)}
+                    />
                   ))}
               </div>
             </div>
@@ -119,7 +123,11 @@ export default function Group() {
                 {data
                   ?.filter((t) => t.status === "in-progress")
                   .map((task) => (
-                    <TaskCard key={task.id} task={task} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      groupId={Number(groupId)}
+                    />
                   ))}
               </div>
             </div>
@@ -137,7 +145,11 @@ export default function Group() {
                 {data
                   ?.filter((t) => t.status === "done")
                   .map((task) => (
-                    <TaskCard key={task.id} task={task} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      groupId={Number(groupId)}
+                    />
                   ))}
               </div>
             </div>
@@ -148,9 +160,9 @@ export default function Group() {
   );
 }
 
-const TaskCard = ({ task }: { task: Task }) => {
+const TaskCard = ({ task, groupId }: { task: Task; groupId: number }) => {
   return (
-    <Link to={`/groups/${task.group_id}/${task.id}`}>
+    <Link to={`/groups/${groupId}/${task.id}`}>
       <Card
         className={`border-neutral-200 shadow-none gap-3 hover:shadow-md transition-shadow`}
       >
@@ -175,13 +187,18 @@ const TaskCard = ({ task }: { task: Task }) => {
           <div className="flex items-center gap-1">
             <Avatar className="size-4">
               <AvatarImage
-                src={`https://api.dicebear.com/9.x/glass/svg?seed=${task.assign}`}
+                src={
+                  task.assigned_user?.picture ||
+                  "https://api.dicebear.com/9.x/glass/svg?seed=default"
+                }
               />
               <AvatarFallback className={`text-white text-xs`}>
-                CN
+                {task.assigned_user?.user_name.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-muted-foreground">{task.assign}</span>
+            <span className="text-xs text-muted-foreground">
+              {task.assigned_user?.user_name || "未割り当て"}
+            </span>
           </div>
         </CardFooter>
       </Card>
