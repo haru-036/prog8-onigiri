@@ -69,6 +69,7 @@ oauth.register(
 db_dependency=Annotated[Session, Depends(get_db)]
 
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")  # フロントエンドのURLを環境変数から取得
+backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")  # バックエンドのURLを環境変数から取得
 
 priority_List=["high","middle","low"]
 status_List=["not-started-yet","in-progress","done"]
@@ -186,7 +187,7 @@ def send_invite_email(receiver_email: str, group_name: str, invite_link: str):
     ___
 
     【MeeTask】
-    https://MeeTask-app.example.com
+    https://meetask.harurahu.workers.dev/
     """
 
     # MIME構造の作成
@@ -640,7 +641,7 @@ async def invite_user(group_id: int, db: db_dependency, request: Request, invite
     invitation_model = Invitation(**invite_request.model_dump(), group_id=group_id, token=token)
     db.add(invitation_model)
     db.commit()
-    invite_link = f"http://localhost:8000/join?token={token}"  # トークンは本来ランダム生成
+    invite_link = f"{backend_url}/join?token={token}"  # トークンは本来ランダム生成
     group_name=group_model.name
     send_invite_email(invite_request.email, group_name, invite_link)
     return {"message": "招待メールを送信しました"}
