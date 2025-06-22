@@ -7,8 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./components/ui/select";
-import Statistics from "./Statistics";
-import Origin from "./Origin";
+import Statistics from "./components/Statistics";
+import Origin from "./components/Origin";
 
 function Result() {
   return (
