@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 
 function Origin() {
   return (
-    <div className=" bg-neutral-50 pr-4 pt-6 w-[300px] shrink-0">
+    <div className=" bg-neutral-50 pt-6 w-[300px] shrink-0">
       <div className="bg-white border border-neutral-200 max-w-sm rounded-md ">
         <div className="text-left p-5 space-y-2 ">
           <div className="flex justify-between items-center">

@@ -28,8 +28,11 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/groups/:groupId" element={<Group />} />
             <Route path="/groups/:groupId/:taskId" element={<TaskDetail />} />
 
-            <Route path="/extraction" element={<Extraction />} />
-            <Route path="/result" element={<Result />} />
+            <Route
+              path="/groups/:groupId/extraction"
+              element={<Extraction />}
+            />
+            <Route path="/groups/:groupId/result" element={<Result />} />
           </Route>
         </Routes>
       </BrowserRouter>
