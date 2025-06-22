@@ -235,7 +235,6 @@ const TaskFilter = ({
   onFilterChange,
 }: {
   groupId: number;
-  tasks: Task[];
   allTasks: Task[];
   filter: { priorities: string[]; users: number[] };
   onFilterChange: (f: { priorities: string[]; users: number[] }) => void;
