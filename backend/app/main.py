@@ -150,7 +150,7 @@ class TaskResponse(BaseModel):
     description: str
     deadline: datetime
     priority: str
-    assigned_user: UserInformationResponse
+    assigned_user: Optional[UserInformationResponse] = None
     status: str
     created_at: datetime
 
@@ -892,7 +892,10 @@ async def extract_tasks_from_file(db: db_dependency, request: Request, group_id:
 
         response = model.generate_content(prompt)
         raw_output = response.text 
-        return json.loads(raw_output)
+        # Markdownの ```json ... ``` を除去
+        clean_output = strip_markdown_code_block(raw_output)
+
+        return json.loads(clean_output)
     except json.JSONDecodeError:
     # 必要ならAIの出力を整形してリトライする処理を書く
         print("AIの出力:", raw_output)  # ログに出すだけで実用面が改善します
@@ -902,7 +905,7 @@ async def extract_tasks_from_file(db: db_dependency, request: Request, group_id:
         raise HTTPException(status_code=500, detail=f"ファイルからのタスク抽出失敗: {str(e)}")
 
 # --- DB保存用エンドポイント（依存関係がある前提） ---
-@app.post("/groups/{group_id}/tasks/save", response_model=List[TaskItem])
+@app.post("/groups/{group_id}/tasks/save")
 async def save_tasks_to_db(request: Request, tasks: List[TaskItem], db: db_dependency, group_id: int=Path(gt=0)):
     
     user=get_current_user(request)
@@ -911,21 +914,27 @@ async def save_tasks_to_db(request: Request, tasks: List[TaskItem], db: db_depen
     if not middle_model:
         raise HTTPException(status_code=403, detail="このグループのメンバーではないためアクセスできません")
     if middle_model.role!="owner":
-        raise HTTPException(status_code=403, detail="オーナーではないので議事録を書き込めません")
+        raise HTTPException(status_code=403, detail="オーナーではないので保存できません")
 
-    saved_tasks = []
-
+    
     for task in tasks:
+        deadline_dt = None
+        if task.deadline:
+            try:
+                deadline_dt = datetime.fromisoformat(task.deadline)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"無効な日付形式です: {task.deadline}")
+
         task_record = Task(
             title=task.title,
             description=task.description,
-            deadline=task.deadline,
+            deadline=deadline_dt,
             priority=task.priority,
             assign=task.assign,
-            status=task.status or "not-started-yet",
+            status=task.status,
+            group_id=group_id
         )
         db.add(task_record)
-        saved_tasks.append(task)
 
     db.commit()
-    return saved_tasks
+    return {"message":"データベースに追加しました"}
