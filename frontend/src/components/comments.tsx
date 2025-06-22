@@ -60,11 +60,16 @@ export const CommentList = ({ taskId }: { taskId: string }) => {
           <CommentItem
             key={comment.id}
             user={comment.commenter}
-            date={new Date(comment.created_at).toLocaleDateString("ja-JP", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            })}
+            date={new Date(comment.created_at + "Z").toLocaleDateString(
+              "ja-JP",
+              {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            )}
             content={comment.contents}
           />
         ))}
@@ -95,7 +100,7 @@ const CommentItem = ({
   content: string;
 }) => {
   return (
-    <div className="py-3 flex items-start gap-2 px-1">
+    <div className="py-3 flex items-start gap-2 px-1 relative">
       <Avatar className="size-7">
         <AvatarImage
           src={
@@ -106,10 +111,25 @@ const CommentItem = ({
         <AvatarFallback>{user.user_name.charAt(0)}</AvatarFallback>
       </Avatar>
 
-      <div className="space-y-1">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold">{user.user_name}</span>
-          <p className="text-sm text-muted-foreground">{date}</p>
+      <div className="space-y-1 flex-1">
+        <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-semibold">{user.user_name}</span>
+            <p className="text-sm text-muted-foreground">{date}</p>
+          </div>
+          {/* <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-6">
+                <MoreHorizontal size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="text-destructive">
+                <Trash2 className="text-destructive" />
+                削除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu> */}
         </div>
         <p className="text-base whitespace-pre-wrap break-words">{content}</p>
       </div>
