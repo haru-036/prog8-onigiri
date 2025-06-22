@@ -14,7 +14,7 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useState } from "react";
 import {
   Form,
@@ -449,9 +449,11 @@ export default function Header() {
                 </DialogContent>
               </Dialog>
 
-              <Button>
-                <FileText />
-                議事録アップロード
+              <Button asChild>
+                <Link to={`/groups/${groupId}/extraction`}>
+                  <FileText />
+                  議事録アップロード
+                </Link>
               </Button>
             </>
           )}
