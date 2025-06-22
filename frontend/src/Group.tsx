@@ -83,7 +83,6 @@ export default function Group() {
           </div> */}
           <TaskFilter
             groupId={Number(groupId)}
-            tasks={data!}
             allTasks={allTasks!}
             filter={filter}
             onFilterChange={setFilter}
