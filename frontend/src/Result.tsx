@@ -48,10 +48,10 @@ function Result() {
 
   // タスク削除関数
   const handleDeleteTask = (index: number) => {
-    // const confirm = window.confirm("本当に削除しますか？");
-    // if (confirm) {
-    setTasks((prev) => prev.filter((_, i) => i !== index));
-    // }
+    const confirm = window.confirm("本当に削除しますか？");
+    if (confirm) {
+      setTasks((prev) => prev.filter((_, i) => i !== index));
+    }
   };
 
   // タスクの更新関数
@@ -73,6 +73,18 @@ function Result() {
       navigate(`/groups/${groupId}`);
     },
   });
+
+  useEffect(() => {
+    if (location.state && location.state.tasks) {
+      setTasks(location.state.tasks);
+    } else {
+      navigate(`/groups/${urlParams.groupId}/extraction`, {
+        state: { error: "タスクが見つかりません" },
+      });
+    }
+  }, [location.state, navigate, urlParams.groupId]);
+
+  const hasUnassigned = tasks.some((task) => !task.assign);
 
   return (
     <div className="grow w-full bg-neutral-50">
@@ -113,7 +125,10 @@ function Result() {
                   <SelectItem value="three">ユーザー３</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => mutation.mutate(tasks)}>
+              <Button
+                onClick={() => mutation.mutate(tasks)}
+                disabled={hasUnassigned}
+              >
                 <Plus />
                 追加
               </Button>
@@ -143,9 +158,21 @@ function Result() {
 
 export default Result;
 
-const TaskCard = ({ task, onDelete, onUpdate }: { task: Task; onDelete: () => void; onUpdate: (updated: Partial<Task>) => void }) => {
-  const [date, setDate] = useState<Date>(task.deadline ? new Date(task.deadline + "Z") : new Date());
-  const [month, setMonth] = useState<Date>(new Date());
+const TaskCard = ({
+  task,
+  onDelete,
+  onUpdate,
+}: {
+  task: Task;
+  onDelete: () => void;
+  onUpdate: (updated: Partial<Task>) => void;
+}) => {
+  const [date, setDate] = useState<Date>(
+    task.deadline ? new Date(task.deadline + "Z") : new Date()
+  );
+  const [month, setMonth] = useState<Date>(
+    task.deadline ? new Date(task.deadline + "Z") : new Date()
+  );
   const [open, setOpen] = useState<"calendar" | null>(null);
   const [assign, setAssign] = useState<number | null>(task.assign || null);
 
@@ -197,7 +224,7 @@ const TaskCard = ({ task, onDelete, onUpdate }: { task: Task; onDelete: () => vo
               placeholder="June 01, 2025"
               className="bg-background pr-10 py-2"
               onChange={(e) => {
-                const newDate = new Date(e.target.value);
+                const newDate = new Date(e.target.value + "Z");
                 if (isValidDate(newDate)) {
                   setDate(newDate);
                   setMonth(newDate);
@@ -253,7 +280,13 @@ const TaskCard = ({ task, onDelete, onUpdate }: { task: Task; onDelete: () => vo
   );
 };
 
-const UserSelect = ({ assign, onChange }: { assign: number | null; onChange?: (id: number | null) => void }) => {
+const UserSelect = ({
+  assign,
+  onChange,
+}: {
+  assign: number | null;
+  onChange?: (id: number | null) => void;
+}) => {
   const urlParams = useParams();
   const groupId = Number(urlParams.groupId);
   const { data: members, isPending } = useGroupMembers(groupId);
