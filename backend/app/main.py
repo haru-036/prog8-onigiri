@@ -395,7 +395,15 @@ async def get_assigned_groups(request: Request,db: db_dependency):
 #タスク作成
 @app.post("/groups/{group_id}/tasks")
 async def create_task(group_id: int, request: Request, todo_request: TodoRequest, db: db_dependency):
-    get_current_user(request)
+    user=get_current_user(request)
+    #このユーザーはこのグループに所属しているか
+    middle_model=db.query(Middle).filter(Middle.group_id==group_id).filter(Middle.user_id==user["id"]).first()
+    if not middle_model:
+        raise HTTPException(status_code=403, detail="あなたはこのグループに所属していないので作成できません")
+    #assignされているメンバーはこのグループに所属しているか
+    assign_check=db.query(Middle).filter(Middle.group_id==group_id).filter(Middle.user_id==todo_request.assign).first()
+    if not assign_check:
+         raise HTTPException(status_code=403, detail="指定したユーザーはこのグループに所属していないのでタスクをアサインできません")       
     todo_model=Task(**todo_request.model_dump(),group_id=group_id)
     db.add(todo_model)
     db.commit()
