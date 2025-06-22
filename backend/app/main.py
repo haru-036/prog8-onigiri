@@ -178,7 +178,7 @@ class MinutesTextRequest(BaseModel):
     text: str
 
 #招待メール送信関数
-def send_invite_email(receiver_email: str, group_name: str, invite_link: str):
+def send_invite_email(receiver_email: str, group_name: str, invite_link: str, name: str):
     # Gmailの送信者情報
     sender_email = "341117lisamilet@gmail.com"
     app_password = os.getenv("APP_PASSWORD")  # アプリパスワード
@@ -187,7 +187,7 @@ def send_invite_email(receiver_email: str, group_name: str, invite_link: str):
     subject = f"【MeeTask】{group_name}グループに招待されています"
     body = f"""
     タスク管理アプリMeeTaskで、
-    あなたは【{group_name}】に招待されました！
+    あなたは{name}から【{group_name}】に招待されました！
 
     下のリンクをクリックしてグループに参加してください：
     {invite_link}
@@ -665,7 +665,8 @@ async def invite_user(group_id: int, db: db_dependency, request: Request, invite
     db.commit()
     invite_link = f"{backend_url}/join?token={token}"  # トークンは本来ランダム生成
     group_name=group_model.name
-    send_invite_email(invite_request.email, group_name, invite_link)
+    name=user["user_name"]
+    send_invite_email(invite_request.email, group_name, invite_link, name)
     return {"message": "招待メールを送信しました"}
 
 
