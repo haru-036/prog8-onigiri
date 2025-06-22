@@ -25,7 +25,7 @@ function Statistics({ tasks }: { tasks: Task[] }) {
               担当者設定済
             </div>
             <div className="text-lg font-bold">
-              {tasks.filter((task) => task.assigned_user).length}
+              {tasks.filter((task) => task.assign).length}
             </div>
           </div>
           <div className="flex justify-between items-center">
