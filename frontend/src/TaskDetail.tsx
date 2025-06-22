@@ -211,7 +211,7 @@ export default function TaskDetail() {
                       id="date"
                     >
                       {task
-                        ? new Date(task.deadline).toLocaleDateString()
+                        ? new Date(task.deadline + "Z").toLocaleDateString()
                         : "Select date"}
                     </PopoverTrigger>
                     <PopoverContent
@@ -220,15 +220,14 @@ export default function TaskDetail() {
                     >
                       <Calendar
                         mode="single"
-                        selected={task ? new Date(task.deadline) : undefined}
+                        selected={
+                          task ? new Date(task.deadline + "Z") : undefined
+                        }
                         captionLayout="dropdown"
                         onSelect={(date) => {
                           if (date) {
-                            // Adjust for timezone to ensure the selected date is preserved
-                            const adjustedDate = new Date(date);
-                            adjustedDate.setHours(23, 59, 59, 999);
                             updateTaskMutation.mutate({
-                              deadline: adjustedDate.toISOString(),
+                              deadline: date.toISOString(),
                             });
                           }
                           setOpen(false);

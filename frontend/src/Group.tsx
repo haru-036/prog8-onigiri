@@ -1,12 +1,5 @@
-import {
-  ArrowDownUp,
-  Calendar,
-  CircleSmall,
-  Filter,
-  Flag,
-  Search,
-} from "lucide-react";
-import { Input } from "./components/ui/input";
+import { useState } from "react";
+import { ArrowDownUp, Calendar, CircleSmall, Filter, Flag } from "lucide-react";
 import { Checkbox } from "./components/ui/checkbox";
 import { Label } from "./components/ui/label";
 import {
@@ -23,27 +16,53 @@ import {
   CardHeader,
 } from "./components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
-import { tasks } from "./mock/data";
 import type { Task } from "./types";
 import { Link, useParams } from "react-router";
 import { PriorityBadge } from "./components/priorityBadge";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./lib/axios";
+import { useGroupMembers } from "./hooks/useGroupMembers";
 
 export default function Group() {
   const urlParams = useParams<{ groupId: string }>();
   const groupId = urlParams.groupId;
-  const { data, isPending } = useQuery({
-    queryKey: ["tasks", groupId],
+  // フィルタ状態
+  const [filter, setFilter] = useState<{
+    priorities: string[];
+    users: number[];
+  }>({
+    priorities: [],
+    users: [],
+  });
+
+  // 全タスク（フィルターなし）
+  const { data: allTasks } = useQuery({
+    queryKey: ["tasks", groupId, "all"],
     queryFn: async (): Promise<Task[]> => {
-      // ここでAPIからタスクを取得する処理を実装
       const res = await api.get(`/groups/${groupId}/tasks`);
       return res.data;
     },
   });
-  console.log("Group tasks:", data);
 
-  if (isPending) {
+  // クエリパラメータを組み立て
+  const params: Record<string, string | number | undefined> = {};
+  if (filter.priorities.length === 1) {
+    params.priority = filter.priorities[0];
+  }
+  if (filter.users.length === 1) {
+    params.assign = filter.users[0];
+  }
+
+  // フィルター済みタスク
+  const { data } = useQuery({
+    queryKey: ["tasks", groupId, filter, params],
+    queryFn: async (): Promise<Task[]> => {
+      const res = await api.get(`/groups/${groupId}/tasks`, { params });
+      return res.data;
+    },
+  });
+
+  if (!data && !allTasks) {
     return (
       <div className="grow flex items-center justify-center">
         <p className="text-muted-foreground">タスクを読み込み中...</p>
@@ -54,17 +73,22 @@ export default function Group() {
   return (
     <div className="grow w-full bg-neutral-50 p-6 flex gap-6">
       <div className="flex-1 flex gap-6 mx-auto max-w-7xl xl:container">
-        <div className="max-w-64 w-full">
-          <div className="relative mb-4">
+        <div className="max-w-56 w-full">
+          {/* <div className="relative mb-4">
             <Input
               className="bg-white pl-9 text-base py-2.5 rounded-lg"
               placeholder="タスクを検索"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          </div>
-          <TaskFilter />
+          </div> */}
+          <TaskFilter
+            groupId={Number(groupId)}
+            tasks={data!}
+            allTasks={allTasks!}
+            filter={filter}
+            onFilterChange={setFilter}
+          />
         </div>
-
         {/* 並び替え */}
         <div className="w-full">
           <div className="flex items-center justify-between">
@@ -83,7 +107,6 @@ export default function Group() {
               </SelectContent>
             </Select>
           </div>
-
           {/* かんばん表示 */}
           <div className="py-5 grid grid-cols-3 gap-4">
             <div>
@@ -96,7 +119,6 @@ export default function Group() {
                   {data?.filter((t) => t.status === "not-started-yet").length}
                 </div>
               </div>
-
               <div className="py-3 grid grid-cols-1 gap-3">
                 {data
                   ?.filter((t) => t.status === "not-started-yet")
@@ -172,7 +194,7 @@ const TaskCard = ({ task, groupId }: { task: Task; groupId: number }) => {
             <Calendar size={12} />
             <span>
               {/* TODO: 締め切りの表示 */}
-              {new Date(task.deadline).toLocaleDateString("ja-JP", {
+              {new Date(task.deadline + "Z").toLocaleDateString("ja-JP", {
                 year: "numeric",
                 month: "2-digit",
                 day: "2-digit",
@@ -206,57 +228,131 @@ const TaskCard = ({ task, groupId }: { task: Task; groupId: number }) => {
   );
 };
 
-const TaskFilter = () => {
+const TaskFilter = ({
+  groupId,
+  allTasks,
+  filter,
+  onFilterChange,
+}: {
+  groupId: number;
+  tasks: Task[];
+  allTasks: Task[];
+  filter: { priorities: string[]; users: number[] };
+  onFilterChange: (f: { priorities: string[]; users: number[] }) => void;
+}) => {
+  const { data: members } = useGroupMembers(groupId);
+  // チェック状態をローカルで管理
+  const [checkedPriorities, setCheckedPriorities] = useState<string[]>(
+    filter.priorities
+  );
+  const [checkedUsers, setCheckedUsers] = useState<number[]>(filter.users);
+
+  // チェック変更時に親へ通知
+  const handlePriorityChange = (priority: string) => {
+    let next: string[];
+    if (checkedPriorities.includes(priority)) {
+      next = checkedPriorities.filter((p) => p !== priority);
+    } else {
+      next = [...checkedPriorities, priority];
+    }
+    setCheckedPriorities(next);
+    onFilterChange({ priorities: next, users: checkedUsers });
+  };
+  const handleUserChange = (userId: number) => {
+    let next: number[];
+    if (checkedUsers.includes(userId)) {
+      next = checkedUsers.filter((id) => id !== userId);
+    } else {
+      next = [...checkedUsers, userId];
+    }
+    setCheckedUsers(next);
+    onFilterChange({ priorities: checkedPriorities, users: next });
+  };
+
   return (
     <div className="bg-white rounded-lg p-4 border-input border">
       <div className="flex items-center gap-2">
         <Filter className="size-4 text-primary" />
         <h3 className="font-semibold">絞り込み</h3>
       </div>
-
       <div>
         <div className="py-3">
           <h4 className="text-muted-foreground text-sm">優先度</h4>
           <ul className="flex flex-col gap-2 pt-2">
             <li className="flex items-center gap-2">
-              <Checkbox id="high" />
+              <Checkbox
+                id="high"
+                checked={checkedPriorities.includes("high")}
+                onCheckedChange={() => handlePriorityChange("high")}
+              />
               <Label htmlFor="high" className="gap-0.5">
-                <Flag className="size-3.5 text-red-700 fill-red-700" />高 (
-                {tasks.filter((task) => task.priority === "high").length})
+                <Flag className="size-3.5 text-red-700 fill-red-700" />高
+                <span className="font-normal ml-2 text-muted-foreground">
+                  {allTasks.filter((task) => task.priority === "high").length}
+                </span>
               </Label>
             </li>
             <li className="flex items-center gap-2">
-              <Checkbox id="middle" />
+              <Checkbox
+                id="middle"
+                checked={checkedPriorities.includes("middle")}
+                onCheckedChange={() => handlePriorityChange("middle")}
+              />
               <Label htmlFor="middle" className="gap-0.5">
-                <Flag className="size-3.5 text-amber-600 fill-amber-600" />中 (
-                {tasks.filter((task) => task.priority === "middle").length})
+                <Flag className="size-3.5 text-amber-600 fill-amber-600" />中
+                <span className="font-normal ml-2 text-muted-foreground">
+                  {allTasks.filter((task) => task.priority === "middle").length}
+                </span>
               </Label>
             </li>
             <li className="flex items-center gap-2">
-              <Checkbox id="low" />
+              <Checkbox
+                id="low"
+                checked={checkedPriorities.includes("low")}
+                onCheckedChange={() => handlePriorityChange("low")}
+              />
               <Label htmlFor="low" className="gap-0.5">
-                <Flag className="size-3.5 text-neutral-600" />低 (
-                {tasks.filter((task) => task.priority === "low").length})
+                <Flag className="size-3.5 text-neutral-600" />低
+                <span className="font-normal ml-2 text-muted-foreground">
+                  {allTasks.filter((task) => task.priority === "low").length}
+                </span>
               </Label>
             </li>
           </ul>
         </div>
-
         <div className="py-2">
           <h4 className="text-muted-foreground text-sm">担当者</h4>
           <ul className="flex flex-col gap-2 pt-2">
-            <li className="flex items-center gap-2">
-              <Checkbox id="user1" />
-              <Label htmlFor="user1">佐藤 (12)</Label>
-            </li>
-            <li className="flex items-center gap-2">
-              <Checkbox id="user2" />
-              <Label htmlFor="user2">田中 (4)</Label>
-            </li>
-            <li className="flex items-center gap-2">
-              <Checkbox id="user3" />
-              <Label htmlFor="user3">鈴木 (8)</Label>
-            </li>
+            {members?.map((member) => (
+              <li key={member.id} className="flex items-center gap-2">
+                <Checkbox
+                  id={`user-${member.id}`}
+                  checked={checkedUsers.includes(member.id)}
+                  onCheckedChange={() => handleUserChange(member.id)}
+                />
+                <Label htmlFor={`user-${member.id}`}>
+                  <Avatar className="size-4">
+                    <AvatarImage
+                      src={
+                        member.picture ||
+                        "https://api.dicebear.com/9.x/glass/svg?seed=default"
+                      }
+                    />
+                    <AvatarFallback className="text-xs">
+                      {member.user_name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {member.user_name}
+                  <span className="font-normal ml-2 text-muted-foreground">
+                    {
+                      allTasks.filter(
+                        (task) => task.assigned_user?.id === member.id
+                      ).length
+                    }
+                  </span>
+                </Label>
+              </li>
+            ))}
           </ul>
         </div>
       </div>

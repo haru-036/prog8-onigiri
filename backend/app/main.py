@@ -460,7 +460,7 @@ async def get_all_tasks(
     request: Request, 
     db: db_dependency, 
     group_id: int=Path(gt=0),
-    status: Optional[Literal["todo", "in_progress", "done"]]=Query(None),
+    status: Optional[Literal["not-started-yet", "in-progress", "done"]]=Query(None),
     priority: Optional[Literal["high", "middle", "low"]]=Query(None),
     assign: Optional[int]=Query(None, gt=0)
     ):
