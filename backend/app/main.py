@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field, field_validator, EmailStr
 from datetime import datetime,date, timedelta
 from sqlalchemy.orm import joinedload
 from fastapi.middleware.cors import CORSMiddleware
-from google import generativeai as genai
+from google import genai
+from google.genai import types
 import re
 from docx import Document
 import io
@@ -693,8 +694,12 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     raise ValueError("GEMINI_API_KEY not set in environment")
 
-genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client()
+
+# genai.configure(api_key=API_KEY)
+# model = genai.GenerativeModel("gemini-1.5-flash")
+
+
 
 # --- リクエスト/レスポンスのデータモデル ---
 
@@ -704,7 +709,7 @@ class TaskItem(BaseModel):
     deadline: Optional[str] = None
     priority: Optional[Literal["high", "middle", "low"]] = None
     assign: Optional[int] = None
-    status: str="not-started-yet"
+    status: Literal["not-started-yet", "in-progress", "done"] = "not-started-yet"
 
 class MeetingMinutes(BaseModel):
     text: str
@@ -828,6 +833,52 @@ priority は以下の基準で分類してください：
 {meeting_text}
 """
 
+def generate_system_instruction(group_id:int, db: db_dependency) -> str:
+    middle_model=db.query(Middle).filter(Middle.group_id==group_id).all()
+    user_ids=[]
+    for m in middle_model:
+        user_ids.append(m.user_id)
+    # ユーザーモデルをまとめて取得（効率的に）
+    user_models = db.query(User).filter(User.id.in_(user_ids)).all()
+    # JSON形式のリストを作成
+    users_json = [{"name": user.user_name, "id": user.id} for user in user_models]
+    
+    return f"""
+あなたはプロジェクトマネージャーのアシスタントAIです。  
+会議議事録から、必要なタスクを抽出し、それぞれに以下の形式で詳細なJSONオブジェクトとして出力してください。
+議事録は、直接テキストで入力されます。
+
+特に `description` には、議事録内に記載された**タスクの背景、目的、注意点、何をなぜやるのかなど**をできるだけ詳細に含めてください。  
+改行を含む複数行の説明でも問題ありません。
+
+priority は以下の基準で分類してください：
+- "high": 緊急対応、3日以内の納期、対外的な影響がある業務
+- "middle": 期限はあるが緊急でない通常タスク
+- "low": 期限未定、下準備・補助タスク、他タスク依存のもの
+割り当ては realistic に行い、すべてを high にしないでください。
+
+締め切り（deadline）は、議事録内に「来週中」「7月頭」「6月末ごろ」などの曖昧な表現がある場合でも、できる限り具体的な ISO 日付（YYYY-MM-DD）形式に変換してください。
+今日の日付を基準に、次のように変換してください。
+
+変換ルールの例：
+- 「来週中」→ 会議日から数えて最初の月曜日〜金曜日の範囲内の日付（例:会議が6/18なら「来週中」は6/24〜6/28のいずれか）
+- 「7月頭」→ 7月1日〜7月5日あたり（デフォルトは7月3日）
+- 「6月末」→ 6月30日（月末）
+- 「近日中」「今週中」→ 会議日から数えて3営業日以内
+- 「〇日までに」などがあればそのまま使う
+もし特定が難しい場合は `null` にしてください。
+
+以下の users_json は、現在このプロジェクトに参加しているメンバーの情報です。
+
+議事録中で担当者が登場した場合、その名前に対応する `id` を `assign` に指定してください。
+
+ユーザー一覧のnameは敬称なしフルネームです。議事録中の敬称つき名前を適切に紐づけてassignにidを入れてください。
+一致する名前が存在しない場合は `null` としてください。
+【users_json】
+---
+{users_json}
+"""
+
 
 # Markdownのコードブロックを除去する関数
 def strip_markdown_code_block(text: str) -> str:
@@ -857,15 +908,27 @@ async def extract_tasks(meeting_minutes: MeetingMinutes, request: Request, db: d
     raw_output = None
 
     try:
-        response = model.generate_content(prompt)
-        raw_output = response.text 
-        # Markdownの ```json ... ``` を除去
-        clean_output = strip_markdown_code_block(raw_output)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash", 
+            contents=cleaned_text,
+            config=types.GenerateContentConfig(
+                responseMimeType="application/json",
+                responseSchema=list[TaskItem],
+                system_instruction=generate_system_instruction(group_id, db)
+            )
+        )
+        
+        print(response.text)
+        my_tasks: list[TaskItem] = response.parsed
 
-        return json.loads(clean_output)
+        # raw_output = response.text 
+        # # Markdownの ```json ... ``` を除去
+        # clean_output = strip_markdown_code_block(raw_output)
+
+        return my_tasks
     except json.JSONDecodeError:
     # 必要ならAIの出力を整形してリトライする処理を書く
-        print("AIの出力:", raw_output)  # ログに出すだけで実用面が改善します
+        print("AIの出力:", my_tasks)  # ログに出すだけで実用面が改善します
         raise HTTPException(status_code=500, detail="JSONパースに失敗しました")
 
     except Exception as e:
@@ -891,7 +954,14 @@ async def extract_tasks_from_file(db: db_dependency, request: Request, group_id:
         prompt = generate_prompt(meeting_text,group_id, db)
         raw_output = None
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash", 
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                responseMimeType="application/json",
+                responseSchema=list[TaskItem]
+            )
+        )
         raw_output = response.text 
         # Markdownの ```json ... ``` を除去
         clean_output = strip_markdown_code_block(raw_output)
